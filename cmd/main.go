@@ -56,12 +56,6 @@ func main() {
 		Load:         flg.Load,
 	}
 
-	if flg.Server {
-		go func() {
-			play.NewServer(&cfg).Run()
-		}()
-	}
-
 	if flg.ReactUI {
 		ex, err := os.Executable()
 		if err != nil {
@@ -74,7 +68,12 @@ func main() {
 				}
 			}()
 		}
-	} else {
-		play.RunCLI(&cfg)
 	}
+
+	if flg.Server {
+		play.NewServer(&cfg).Run()
+		return
+	}
+
+	play.RunCLI(&cfg)
 }

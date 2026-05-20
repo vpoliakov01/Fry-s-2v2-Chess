@@ -27,7 +27,10 @@ export function useGameSocket(onMessage: (message: Message) => void) {
 	}, []);
 
 	useEffect(() => {
-		const ws = new WebSocket('ws://localhost:8080/ws');
+		const wsUrl = window.location.port === '3000'
+			? 'ws://localhost:8080/ws'
+			: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
+		const ws = new WebSocket(wsUrl);
 
 		ws.onopen = () => {
 			wsRef.current = ws;

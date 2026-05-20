@@ -1,0 +1,17 @@
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.engine
+    container_name: chess-engine
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ./ui
+    container_name: chess-ui
+    depends_on:
+      - engine
+    ports:
+      - "${UI_PORT:-80}:80"
+    restart: unless-stopped
