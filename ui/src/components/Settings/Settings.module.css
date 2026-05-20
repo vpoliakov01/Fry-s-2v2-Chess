@@ -1,24 +1,24 @@
 /* Settings component styles */
 
 .settingsContainer {
-  width: 100%;
-  margin-top: 10px;
-  padding: 5px;
+	width: 100%;
+	margin-top: 10px;
+	padding: 5px;
 }
 
 .settingsTable {
-  text-align: right;
-  padding: 5px;
+	text-align: right;
+	padding: 5px;
 }
 
 .settingsRow {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  margin-left: 10px;
+	display: flex;
+	gap: 10px;
+	margin-bottom: 10px;
+	margin-left: 10px;
 }
 
 .settingsTable td {
-  text-align: right;
-  padding: 5px;
+	text-align: right;
+	padding: 5px;
 }

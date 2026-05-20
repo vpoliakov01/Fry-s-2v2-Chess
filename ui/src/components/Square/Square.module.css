@@ -1,38 +1,38 @@
 .square {
-  align-items: center;
-  aspect-ratio: 1;
-  display: flex;
-  justify-content: center;
-  position: relative;
-  user-select: none;
-  width: 100%;
+	align-items: center;
+	aspect-ratio: 1;
+	display: flex;
+	justify-content: center;
+	position: relative;
+	user-select: none;
+	width: 100%;
 }
 
 .squareNonPlayable {
-  aspect-ratio: 1;
-  width: 100%;
+	aspect-ratio: 1;
+	width: 100%;
 }
 
 .possibleMoveIndicator {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 50%;
-  height: 30%;
-  left: 35%;
-  position: absolute;
-  top: 35%;
-  width: 30%;
+	background-color: rgba(0, 0, 0, 0.2);
+	border-radius: 50%;
+	height: 30%;
+	left: 35%;
+	position: absolute;
+	top: 35%;
+	width: 30%;
 }
 
 .pieceImage {
-  pointer-events: none;
-  position: absolute;
+	pointer-events: none;
+	position: absolute;
 }
 
 .squareLabel {
-  font-size: 12px;
-  font-weight: bold;
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  color: var(--color-dark-gray);
+	font-size: 12px;
+	font-weight: bold;
+	position: absolute;
+	top: 3px;
+	right: 3px;
+	color: var(--color-dark-gray);
 }

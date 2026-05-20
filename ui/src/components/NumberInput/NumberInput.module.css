@@ -1,66 +1,66 @@
 .numberInputContainer {
-  display: flex;
-  flex-direction: column;
+	display: flex;
+	flex-direction: column;
 }
 
 .numberInputControls {
-  display: flex;
-  align-items: stretch;
-  height: 28px;
+	display: flex;
+	align-items: stretch;
+	height: 28px;
 }
 
 .numberInputDisplay {
-  background-color: var(--color-slightly-darker-gray);
-  border-top: 1px solid var(--color-dark-gray);
-  border-bottom: 1px solid var(--color-dark-gray);
-  border-left: none;
-  border-right: none;
-  color: var(--color-white);
-  cursor: text;
-  font-size: 14px;
-  height: 26px;
-  margin: 0;
-  outline: none;
-  text-align: center;
-  padding: 0;
+	background-color: var(--color-slightly-darker-gray);
+	border-top: 1px solid var(--color-dark-gray);
+	border-bottom: 1px solid var(--color-dark-gray);
+	border-left: none;
+	border-right: none;
+	color: var(--color-white);
+	cursor: text;
+	font-size: 14px;
+	height: 26px;
+	margin: 0;
+	outline: none;
+	text-align: center;
+	padding: 0;
 }
 
 .numberInputDisplayDisabled {
-  border-radius: var(--border-radius-small);
+	border-radius: var(--border-radius-small);
 }
 
 .numberInputDisplay:focus {
-  outline: none;
+	outline: none;
 }
 
 .numberInputButton {
-  width: 28px;
-  border: 1px solid var(--color-dark-gray);
-  background-color: var(--color-slightly-darker-gray);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  line-height: 1;
+	width: 28px;
+	border: 1px solid var(--color-dark-gray);
+	background-color: var(--color-slightly-darker-gray);
+	cursor: pointer;
+	font-size: 16px;
+	padding: 0;
+	line-height: 1;
 }
 
 .numberInputButton:first-child {
-  border-radius: var(--border-radius-small) 0 0 var(--border-radius-small);
+	border-radius: var(--border-radius-small) 0 0 var(--border-radius-small);
 }
 
 .numberInputButton:last-child {
-  border-radius: 0 var(--border-radius-small) var(--border-radius-small) 0;
+	border-radius: 0 var(--border-radius-small) var(--border-radius-small) 0;
 }
 
 .numberInputButton:hover:first-child:not(:disabled) {
-  background-color: var(--color-red);
+	background-color: var(--color-red);
 }
 
 .numberInputButton:hover:last-child:not(:disabled) {
-  background-color: var(--color-green);
+	background-color: var(--color-green);
 }
 
 .numberInputButton:disabled {
-  background-color: var(--color-dark-gray);
-  cursor: not-allowed;
-  opacity: 0.9;
+	background-color: var(--color-dark-gray);
+	cursor: not-allowed;
+	opacity: 0.9;
 }

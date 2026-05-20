@@ -1,35 +1,35 @@
 .collapsibleBlock {
-  margin-bottom: 5px;
-  width: 100%;
-  border-radius: var(--border-radius);
+	margin-bottom: 5px;
+	width: 100%;
+	border-radius: var(--border-radius);
 }
 
 .collapsibleBlock:last-child {
-  margin-bottom: 0 !important;
+	margin-bottom: 0 !important;
 }
 
 .collapsibleHeader {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 12px 10px 10px;
-  font-weight: bold;
+	align-items: center;
+	cursor: pointer;
+	display: flex;
+	justify-content: space-between;
+	padding: 10px 12px 10px 10px;
+	font-weight: bold;
 }
 
 .collapsibleContent {
-  overflow: hidden;
-  text-align: left;
+	overflow: hidden;
+	text-align: left;
 }
 
 .toggleIcon {
-  font-size: 20px;
-  position: relative;
-  bottom: 2px;
+	font-size: 20px;
+	position: relative;
+	bottom: 2px;
 }
 
 .settingsRow {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
+	display: flex;
+	align-items: center;
+	margin-bottom: 10px;
 }

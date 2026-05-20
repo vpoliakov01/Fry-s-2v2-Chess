@@ -129,11 +129,7 @@ export function ChessBoard() {
 
 	return (
 		<div className={styles.boardContainer}>
-			<ScoreDisplay
-				score={score}
-				hidden={!displaySettings.showEvalBar}
-				showScore={displaySettings.showEvalBarScore}
-			/>
+			<ScoreDisplay score={score} hidden={!displaySettings.showEvalBar} showScore={displaySettings.showEvalBarScore} />
 			<div className={styles.boardInnerContainer}>
 				<div className={styles.board}>
 					{Array(BOARD_SIZE).fill(null).map((_, row) => (

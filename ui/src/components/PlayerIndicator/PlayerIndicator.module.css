@@ -1,13 +1,13 @@
 @keyframes blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.2;
-  }
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.2;
+	}
 }
 
 .playerIndicator {
-  position: absolute;
-  animation: blink 1s infinite;
+	position: absolute;
+	animation: blink 1s infinite;
 }

@@ -25,8 +25,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "format": "dprint fmt \"src/**/*.{ts,tsx}\"",
-    "format:check": "dprint check \"src/**/*.{ts,tsx}\""
+    "format": "dprint fmt \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "dprint check \"src/**/*.{ts,tsx,css}\""
   },
   "eslintConfig": {
     "extends": [
