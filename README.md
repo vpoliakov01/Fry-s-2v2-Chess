@@ -48,7 +48,6 @@ Some more positions reached by the engine playing itself:
 * Add more settings
 
 ### Engine:
-* Multithreading on the 1st level only
 * Filter moves returning captures, development moves, and king safety moves
 * Support castling
 * Support forced calculation for checks

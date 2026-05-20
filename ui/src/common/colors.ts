@@ -7,6 +7,7 @@ export enum Color {
 	LightGray = 'light-gray',
 	Gray = 'gray',
 	DarkGray = 'dark-gray',
+	DarkerGray = 'darker-gray',
 	White = 'white',
 }
 

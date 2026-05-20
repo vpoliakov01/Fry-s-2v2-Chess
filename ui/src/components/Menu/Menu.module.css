@@ -13,6 +13,7 @@
     padding: 5px;
     background-color: var(--color-dark-gray);
     border-radius: var(--border-radius-large);
+    overflow: overlay;
 }
 
 .buttonGroup {

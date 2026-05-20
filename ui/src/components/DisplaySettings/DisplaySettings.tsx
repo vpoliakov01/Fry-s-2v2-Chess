@@ -33,7 +33,7 @@ export function DisplaySettings() {
 							</td>
 						</tr>
 						<tr>
-							<td>Show labels:</td>
+							<td>Square Labels:</td>
 							<td>
 								<select
 									value={displaySettings.showLabels}
@@ -49,6 +49,17 @@ export function DisplaySettings() {
 								<Checkbox
 									checked={displaySettings.showContinuation}
 									onChange={checked => setDisplaySettings({ ...displaySettings, showContinuation: checked })}
+									background={colorCode(Color.DarkGray)}
+									borderColor={colorCode(Color.DarkGray)}
+								/>
+							</td>
+						</tr>
+						<tr>
+							<td>Show Eval Bar:</td>
+							<td>
+								<Checkbox
+									checked={displaySettings.showEvalBar}
+									onChange={checked => setDisplaySettings({ ...displaySettings, showEvalBar: checked })}
 									background={colorCode(Color.DarkGray)}
 									borderColor={colorCode(Color.DarkGray)}
 								/>

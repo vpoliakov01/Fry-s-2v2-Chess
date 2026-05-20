@@ -26,6 +26,7 @@ export interface DisplaySettingsState {
 	moveNotation: MoveNotation;
 	showLabels: ShowLabels;
 	showContinuation: boolean;
+	showEvalBar: boolean;
 }
 
 export class GameStateManager {
@@ -44,8 +45,9 @@ export class GameStateManager {
 
 	static readonly defaultDisplaySettings: DisplaySettingsState = {
 		moveNotation: 'FAN+',
-		showLabels: 'moves',
-		showContinuation: false,
+		showLabels: 'pieces',
+		showContinuation: true,
+		showEvalBar: true,
 	};
 
 	static load(): SavedBoardState {
