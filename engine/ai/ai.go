@@ -94,7 +94,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 
 	// Check base cases.
 	if g.HasEnded() {
-		return float64(-1001 + depth)
+		return float64(-1002 + depth)
 	}
 	if depth > ai.Depth {
 		return eval

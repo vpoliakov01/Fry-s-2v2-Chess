@@ -27,6 +27,7 @@ export interface DisplaySettingsState {
 	showLabels: ShowLabels;
 	showContinuation: boolean;
 	showEvalBar: boolean;
+	showEvalBarScore: boolean;
 }
 
 export class GameStateManager {
@@ -48,6 +49,7 @@ export class GameStateManager {
 		showLabels: 'pieces',
 		showContinuation: true,
 		showEvalBar: true,
+		showEvalBarScore: false,
 	};
 
 	static load(): SavedBoardState {

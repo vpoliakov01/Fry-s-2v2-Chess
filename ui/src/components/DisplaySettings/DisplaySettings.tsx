@@ -65,6 +65,17 @@ export function DisplaySettings() {
 								/>
 							</td>
 						</tr>
+						<tr>
+							<td>Eval Bar Score:</td>
+							<td>
+								<Checkbox
+									checked={displaySettings.showEvalBarScore}
+									onChange={checked => setDisplaySettings({ ...displaySettings, showEvalBarScore: checked })}
+									background={colorCode(Color.DarkGray)}
+									borderColor={colorCode(Color.DarkGray)}
+								/>
+							</td>
+						</tr>
 					</tbody>
 				</table>
 			</div>

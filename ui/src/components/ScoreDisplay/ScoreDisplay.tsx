@@ -2,10 +2,12 @@ import React from 'react';
 import { BOARD_SIZE, Color, colorCode, CORNER_SIZE } from '../../common';
 import styles from './ScoreDisplay.module.css';
 
-export function ScoreDisplay({ score, hidden }: { score: number, hidden?: boolean }) {
+export function ScoreDisplay({ score, hidden, showScore }: { score: number, hidden?: boolean, showScore?: boolean }) {
 	const maxScore = 10;
 	const offsetLength = `calc(${CORNER_SIZE / BOARD_SIZE} * 100%)`;
 	const height = Math.max(Math.min(50 + score / maxScore / 2 * 100, 100), 0);
+	const labelOnBlue = height >= 95;
+	const labelText = Math.abs(score) > 900 ? `M${1000 - Math.abs(score)}` : `${score}`;
 
 	return (
 		<div
@@ -30,6 +32,18 @@ export function ScoreDisplay({ score, hidden }: { score: number, hidden?: boolea
 					height: `${height}%`,
 				}}
 			/>
+			{showScore && (
+				<div
+					className={styles.scoreLabel}
+					style={{
+						top: `calc(${100 - height}% + ${(labelOnBlue ? 1 : -1) * 2}px)`,
+						transform: labelOnBlue ? 'none' : 'translateY(-100%)',
+						color: colorCode(Color.Black),
+					}}
+				>
+					{labelText}
+				</div>
+			)}
 		</div>
 	);
 }
