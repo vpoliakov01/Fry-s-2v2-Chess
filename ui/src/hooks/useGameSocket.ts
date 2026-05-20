@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameSyncService, Message } from '../utils';
 
 export function useGameSocket(onMessage: (message: Message) => void) {
 	const wsRef = useRef<WebSocket | null>(null);
 	const handlerRef = useRef(onMessage);
 	handlerRef.current = onMessage;
+	const [connected, setConnected] = useState(false);
 
 	const sendMessage = useCallback((message: Message) => {
 		if (wsRef.current?.readyState === WebSocket.OPEN) {
 			console.debug(`Sending    ${message.type}`.padEnd(30), message);
 			wsRef.current.send(message.json());
+			setConnected(true);
 			return;
 		}
 
@@ -17,8 +19,9 @@ export function useGameSocket(onMessage: (message: Message) => void) {
 			if (wsRef.current?.readyState === WebSocket.OPEN) {
 				console.debug(`Sending    ${message.type}`.padEnd(30), message);
 				wsRef.current.send(message.json());
+				setConnected(true);
 			} else {
-				alert('No WebSocket connection');
+				setConnected(false);
 			}
 		}, 10);
 	}, []);
@@ -30,11 +33,13 @@ export function useGameSocket(onMessage: (message: Message) => void) {
 			wsRef.current = ws;
 			console.log('WS connected');
 			GameSyncService.syncWithEngine(ws);
+			setConnected(true);
 		};
 
 		ws.onmessage = event => {
 			const message = JSON.parse(event.data) as Message;
 			console.debug(`Received   ${message.type}`.padEnd(30), message);
+			setConnected(true);
 			handlerRef.current(message);
 		};
 
@@ -43,10 +48,15 @@ export function useGameSocket(onMessage: (message: Message) => void) {
 				wsRef.current = null;
 			}
 			console.log('WS disconnected');
+			setConnected(false);
+		};
+
+		ws.onerror = () => {
+			setConnected(false);
 		};
 
 		return () => ws.close();
 	}, []);
 
-	return sendMessage;
+	return { sendMessage, connected };
 }

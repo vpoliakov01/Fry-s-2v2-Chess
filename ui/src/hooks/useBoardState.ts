@@ -59,7 +59,7 @@ export function useBoardState() {
 		}
 	}, []);
 
-	const sendMessage = useGameSocket(handleMessage);
+	const { sendMessage, connected } = useGameSocket(handleMessage);
 
 	const setCurrentMove = useCallback((value: number) => {
 		dispatch({ type: 'setCurrentMove', currentMove: value });
@@ -117,5 +117,6 @@ export function useBoardState() {
 		setPgn,
 		setSelectedSquare,
 		sendMessage,
+		connected,
 	};
 }

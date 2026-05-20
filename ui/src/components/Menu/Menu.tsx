@@ -21,6 +21,7 @@ export function Menu() {
 		playContinuationFromCurrent,
 		settings,
 		setSettings,
+		connected,
 	} = useBoardStateContext();
 	const [pgnBlockCollapsed, setPGNBlockCollapsed] = useState(false);
 	const [userPGN, setUserPGN] = useState<string | null>(null);
@@ -137,6 +138,12 @@ export function Menu() {
 							<button id='button-new-game' onClick={handleNewGame}>New Game</button>
 							<button id='button-copy' onClick={handleCopy}>Copy</button>
 							<button id='button-load' onClick={handleLoad}>Load</button>
+							<div
+								className={`${styles.connectionIndicator} ${
+									connected ? styles.connectionIndicatorConnected : styles.connectionIndicatorDisconnected
+								}`}
+								title={connected ? 'Connected to the engine' : 'Not connected to the engine'}
+							/>
 						</div>
 					}
 				>
