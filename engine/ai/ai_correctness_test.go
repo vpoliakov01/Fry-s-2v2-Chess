@@ -9,9 +9,9 @@ import (
 )
 
 func (s *TestSuite) TestGetBestMove() {
-	engine := New(10, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
-	g := s.GetGame("Mate in 1 (g1-a7)").Copy()
-	moves := 5
+	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	g := s.GetGame("4 queens in the middle, bishops ready").Copy()
+	moves := 10
 
 	startTime := time.Now()
 	for i := 0; i < moves; i++ {
