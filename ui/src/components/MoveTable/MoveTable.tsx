@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-	colorCode,
-	getPieceImage,
-	Move,
-	MoveInfo,
-	pieceFANCharacter,
-	pieceName,
-	PlayerColors,
-	positionToPGN,
-} from '../../common';
+import { getPieceImage, Move, MoveInfo, pieceName, PlayerColors, positionToPGN } from '../../common';
 import { useBoardStateContext } from '../../context/BoardStateContext';
 import { MoveNotation, OnMoveHover } from '../../utils';
 import styles from './MoveTable.module.css';
@@ -34,14 +25,13 @@ export function MoveTable(
 	const onHoverSetBoard = handleSetViewMove ?? handleSetCurrentMove;
 
 	const handleMouseEnter = (moveIndex: number) => {
-		if (selectedMove !== null) {
-			return;
-		}
+		let mode = selectedMove ? 'selectedMove' : hoverMode;
 
-		switch (hoverMode) {
+		switch (mode) {
 			case 'arrow':
 			case 'highlight':
 			case 'highlight+':
+			case 'selectedMove':
 				setHoveredMove({ move: moves[moveIndex], color: PlayerColors[(moveIndex + startOffset) % 4] });
 				break;
 			case 'set board':
@@ -72,10 +62,12 @@ export function MoveTable(
 		if (hoverMode !== 'set board') {
 			return;
 		}
+
 		if (selectedMove !== null) {
-			setSelectedMove(null);
+			setHoveredMove(null);
 			return;
 		}
+
 		const target = moves.length - 1;
 		if (target !== currentMove) {
 			onHoverSetBoard(target);
@@ -85,6 +77,7 @@ export function MoveTable(
 	const handleClick = (moveIndex: number) => {
 		setSelectedMove(moveIndex);
 		handleSetCurrentMove(moveIndex);
+		onHoverSetBoard(moveIndex);
 	};
 
 	const formatMoveDisplay = (move: Move): React.ReactNode => {
