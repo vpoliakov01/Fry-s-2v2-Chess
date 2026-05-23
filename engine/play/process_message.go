@@ -140,10 +140,6 @@ func (c *Connection) processSetCurrentMove(moveIndex int) {
 		log.Printf("Error setting current move: %v", err)
 		return
 	}
-	c.SendMessage(MessageTypeLoadGameResponse, LoadGameResponse{
-		PastMoves:   PGNMovesFromGameMoves(c.gs.PastMoves),
-		CurrentMove: c.gs.CurrentMove,
-	})
 	c.processGetAvailableMoves()
 }
 
