@@ -30,35 +30,52 @@ export function useGameSocket(onMessage: (message: Message) => void) {
 		const wsUrl = window.location.port === '3000'
 			? 'ws://localhost:8080/ws'
 			: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
-		const ws = new WebSocket(wsUrl);
 
-		ws.onopen = () => {
-			wsRef.current = ws;
-			console.log('WS connected');
-			GameSyncService.syncWithEngine(ws);
-			setConnected(true);
+		let cancelled = false;
+		let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+		let ws: WebSocket | null = null;
+
+		const connect = () => {
+			if (cancelled) return;
+			ws = new WebSocket(wsUrl);
+
+			ws.onopen = () => {
+				wsRef.current = ws;
+				console.log('WS connected');
+				GameSyncService.syncWithEngine(ws!);
+				setConnected(true);
+			};
+
+			ws.onmessage = event => {
+				const message = JSON.parse(event.data) as Message;
+				console.debug(`Received   ${message.type}`.padEnd(30), message);
+				setConnected(true);
+				handlerRef.current(message);
+			};
+
+			ws.onclose = () => {
+				if (wsRef.current === ws) {
+					wsRef.current = null;
+				}
+				console.log('WS disconnected');
+				setConnected(false);
+				if (!cancelled) {
+					reconnectTimer = setTimeout(connect, 1000);
+				}
+			};
+
+			ws.onerror = () => {
+				setConnected(false);
+			};
 		};
 
-		ws.onmessage = event => {
-			const message = JSON.parse(event.data) as Message;
-			console.debug(`Received   ${message.type}`.padEnd(30), message);
-			setConnected(true);
-			handlerRef.current(message);
-		};
+		connect();
 
-		ws.onclose = () => {
-			if (wsRef.current === ws) {
-				wsRef.current = null;
-			}
-			console.log('WS disconnected');
-			setConnected(false);
+		return () => {
+			cancelled = true;
+			if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+			ws?.close();
 		};
-
-		ws.onerror = () => {
-			setConnected(false);
-		};
-
-		return () => ws.close();
 	}, []);
 
 	return { sendMessage, connected };
