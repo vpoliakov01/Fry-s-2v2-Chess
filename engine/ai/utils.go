@@ -60,9 +60,7 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 	ai.bfsDepth = depth
 
 	buffer := &ai.buffers[0]
-	alpha := -(mateValue + 1)
-	beta := mateValue + 1
-	ai.sharedAlpha.Store(math.Float64bits(alpha))
+	ai.sharedAlpha.Store(math.Float64bits(-(mateValue + 1)))
 
 	moveEvals := ai.getMoveEvals(g, buffer, 1)
 	if len(moveEvals) == 0 {
@@ -86,13 +84,7 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 		}
 	}
 
-	bestScore, bestContinuation := ai.searchRootMove(g, buffer, 0, moveEvals[0], alpha, beta)
-	alpha = math.Max(alpha, bestScore)
-
-	// Parallel search of the remaining moves with tightened alpha.
-	if alpha < beta && !ai.stopFlag.Load() && len(moveEvals) > 1 {
-		bestScore, bestContinuation = ai.searchRootMovesParallel(g, moveEvals[1:], beta, bestScore, bestContinuation)
-	}
+	bestScore, bestContinuation := ai.searchRootMovesParallel(g, moveEvals, mateValue+1)
 
 	if len(bestContinuation) > 0 && !ai.stopFlag.Load() {
 		ai.cache.Set(g.Hash, bestContinuation[0], bestScore, int8(depth-1), BoundExact)
@@ -101,19 +93,9 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 	return bestContinuation, bestScore, nil
 }
 
-// searchRootMovesParallel searches the given candidates concurrently — one goroutine per
-// candidate, each on its own game copy and buffer. Returns the best score and continuation,
-// folding bestScoreIn / bestContinuationIn (typically the YBW result) into the comparison.
-func (ai *AI) searchRootMovesParallel(
-	g *game.Game,
-	candidates []moveScore,
-	beta,
-	bestScore float64,
-	bestContinuation []game.Move,
-) (
-	float64, // bestScore
-	[]game.Move, // bestContinuation
-) {
+// searchRootMovesParallel searches the candidates concurrently — one goroutine per
+// candidate, each on its own game copy and buffer. Returns the best score and continuation.
+func (ai *AI) searchRootMovesParallel(g *game.Game, candidates []moveScore, beta float64) (float64, []game.Move) {
 	// Pool of CPUs for the goroutines.
 	cpuIDs := make(chan int, cpus)
 	for i := range cpus {
@@ -139,6 +121,9 @@ func (ai *AI) searchRootMovesParallel(
 		}(i, candidate)
 	}
 	wg.Wait()
+
+	bestScore := -math.MaxFloat64
+	var bestContinuation []game.Move
 
 	for _, result := range results {
 		if result.score > bestScore {
