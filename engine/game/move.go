@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+var (
+	NullMove = Move{}
+)
+
 // Move stores move coordinates.
 type Move struct {
 	From Square `json:"from"`

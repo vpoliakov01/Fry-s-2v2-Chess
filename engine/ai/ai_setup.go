@@ -21,6 +21,11 @@ var (
 	DefaultEvalLimit  = MaxEvalLimit
 )
 
+const (
+	mateValue     = 1000.0 // Score of a position whose active player has just been mated.
+	mateThreshold = 900.0  // Scores beyond this magnitude are treated as mate scores.
+)
+
 type moveScore struct {
 	move  game.Move
 	score float64
@@ -58,6 +63,18 @@ func (ai *AI) raiseSharedAlpha(candidate float64) {
 			return
 		}
 	}
+}
+
+// fromOpponentScore converts scores between plies, including "mate-in-N" logic.
+func fromOpponentScore(score float64) float64 {
+	score = -score
+	if score > mateThreshold {
+		return score - 1
+	}
+	if score < -mateThreshold {
+		return score + 1
+	}
+	return score
 }
 
 // sumEvalsCounts aggregates per-worker eval counts into ai.EvalsCount for external telemetry.

@@ -17,6 +17,9 @@ type AI struct {
 	EvalLimit  int
 
 	buffers []buffer // One buffer per CPU.
+	cache   *TranspositionTable
+
+	bfsDepth int // Depth of the running BFS.
 
 	stopFlag    atomic.Bool
 	sharedAlpha atomic.Uint64
@@ -59,26 +62,35 @@ func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64
 	}
 
 	ai.initBuffers()
-
-	buffer := &ai.buffers[0]
-	forcedMateScore := 1002 - float64(ai.Depth)
-	alpha := -forcedMateScore
-	beta := forcedMateScore
-	ai.sharedAlpha.Store(math.Float64bits(alpha))
-
-	moveEvals := ai.getMoveEvals(g, buffer, 1)
-	if len(moveEvals) == 0 {
-		ai.sumEvalsCounts()
-		return nil, 0, ErrNoMoves
+	if ai.cache == nil {
+		ai.cache = NewTranspositionTable()
 	}
+	g.ComputeHash()
 
-	// YBW: search the highest-scored move to establish alpha
-	bestScore, bestContinuation := ai.searchRootMove(g, buffer, 0, moveEvals[0], alpha, beta)
-	alpha = math.Max(alpha, bestScore)
+	bestContinuation := []game.Move{}
+	bestScore := 0.0
+	haveResult := false
 
-	// Parallel search of the remaining moves with tightened alpha
-	if alpha < beta && !ai.stopFlag.Load() && len(moveEvals) > 1 {
-		bestScore, bestContinuation = ai.searchRootMovesParallel(g, moveEvals[1:], beta, bestScore, bestContinuation)
+	for depth := 1; depth <= ai.Depth; depth++ {
+		cont, score, err := ai.searchAtDepth(g, depth)
+		if err != nil {
+			if !haveResult {
+				ai.sumEvalsCounts()
+				return nil, 0, err
+			}
+			break
+		}
+
+		// Only commit a partial result if we have nothing to fall back to.
+		if !ai.stopFlag.Load() || !haveResult {
+			bestContinuation = cont
+			bestScore = score
+			haveResult = true
+		}
+
+		if ai.stopFlag.Load() || math.Abs(bestScore) >= mateValue-float64(depth) {
+			break
+		}
 	}
 
 	ai.sumEvalsCounts()
@@ -94,20 +106,37 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 
 	// Check base cases.
 	if g.HasEnded() {
-		return float64(-1002 + depth)
+		return -mateValue
 	}
-	if depth > ai.Depth {
+	if depth > ai.bfsDepth {
 		return eval
+	}
+
+	remainingDepth := int8(ai.bfsDepth - depth)
+	alphaOrig := alpha
+
+	// Check the transposition table for a previously computed result.
+	var cachedMove game.Move
+
+	cached, ok := ai.cache.Get(g.Hash)
+	if ok {
+		cachedMove = cached.move()
+
+		if cached.depth >= remainingDepth && canCutoff(cached.score, cached.bound, alpha, beta) {
+			buffer.continuation[depth] = append(buffer.continuation[depth][:0], cachedMove)
+			return float64(cached.score)
+		}
 	}
 
 	moveEvals := ai.getMoveEvals(g, buffer, depth)
 
 	// Filter promising moves to actually search.
-	moveIndexesToSearch := ai.GetMoveIndexesToSearch(g, moveEvals, depth, buffer.moveIndexesToSearch[depth][:0])
+	moveIndexesToSearch := ai.GetMoveIndexesToSearch(g, moveEvals, depth, cachedMove, buffer.moveIndexesToSearch[depth][:0])
 	buffer.moveIndexesToSearch[depth] = moveIndexesToSearch
 
 	bestMoveIndex := moveIndexesToSearch[0]
-	bestScore := -math.MaxFloat64
+	bestScore := -1000.0
+	bestMove := game.Move{}
 
 	for _, i := range moveIndexesToSearch {
 		// If other workers updated alpha, tighten.
@@ -126,12 +155,13 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 		opponentScore := ai.Negamax(g, buffer, cpu, depth+1, childEval, -beta, -alpha)
 		g.UnplayMove(move, capturedPiece)
 
-		score := -opponentScore
+		score := fromOpponentScore(opponentScore)
 		moveEvals[i].score = score
 
 		if score > bestScore {
 			bestScore = score
 			bestMoveIndex = i
+			bestMove = move
 
 			continuation := buffer.continuation[depth][:0]
 			continuation = append(continuation, move)
@@ -145,6 +175,10 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 		if alpha >= beta || buffer.evalsCount >= ai.EvalLimit || ai.stopFlag.Load() {
 			break
 		}
+	}
+
+	if !ai.stopFlag.Load() {
+		ai.cache.Set(g.Hash, bestMove, bestScore, remainingDepth, boundOf(bestScore, alphaOrig, beta))
 	}
 
 	if ai.enableDebug {
@@ -184,11 +218,28 @@ func (ai *AI) EvaluateCurrent(g *game.Game, buffer *buffer) float64 {
 }
 
 // GetMoveIndexesToSearch appends the indexes of moves worth searching to dst and returns the extended slice.
-func (ai *AI) GetMoveIndexesToSearch(g *game.Game, moveEvals []moveScore, depth int, dst []int) []int {
+// firstMove is an optional first move to prepend (can be game.NullMove).
+// TODO: This function should ideally go through all moves and pick the most promising ones
+// based on its own rules (capture value diff, piece position, king safety, etc.)
+func (ai *AI) GetMoveIndexesToSearch(g *game.Game, moveEvals []moveScore, depth int, firstMove game.Move, dst []int) []int {
 	movesLeft := max(ai.Spread-depth/4*ai.SpreadDrop, 1)
 	capturesLeft := movesLeft/2 + 1
 
+	if firstMove != game.NullMove {
+		for i := range moveEvals {
+			if moveEvals[i].move == firstMove {
+				dst = append(dst, i)
+				movesLeft--
+				break
+			}
+		}
+	}
+
 	for i, moveEval := range moveEvals {
+		if moveEval.move == firstMove {
+			continue
+		}
+
 		if movesLeft == 0 {
 			return dst
 		}

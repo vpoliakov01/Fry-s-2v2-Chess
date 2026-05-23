@@ -42,6 +42,7 @@ func LoadJSON(bytes []byte) (*GameSession, error) {
 	}
 
 	g.Board.SetPieceSquares()
+	g.ComputeHash()
 
 	return &g, nil
 }

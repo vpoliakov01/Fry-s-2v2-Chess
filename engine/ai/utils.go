@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"math"
 	"sort"
 	"sync"
 
@@ -19,11 +20,13 @@ func (ai *AI) getMoveEvals(g *game.Game, buffer *buffer, depth int) []moveScore 
 	buffer.moves[depth] = moves // In case moves got reallocated by append inside GetMoves.
 
 	moveEvals := buffer.moveEvals[depth][:len(moves)]
+
 	for i := range moves {
 		capturedPiece := g.Play(moves[i])
 		moveEvals[i] = moveScore{moves[i], -ai.EvaluateCurrent(g, buffer)}
 		g.UnplayMove(moves[i], capturedPiece)
 	}
+
 	buffer.moveEvals[depth] = moveEvals
 
 	sort.Slice(moveEvals, func(a, b int) bool {
@@ -41,7 +44,7 @@ func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, candidate mo
 	opponentScore := ai.Negamax(g, buffer, cpu, 2, -candidate.score, -beta, -alpha)
 	g.UnplayMove(move, capturedPiece)
 
-	score = -opponentScore
+	score = fromOpponentScore(opponentScore)
 	ai.raiseSharedAlpha(score)
 
 	childCont := buffer.continuation[2]
@@ -50,6 +53,52 @@ func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, candidate mo
 	continuation = append(continuation, childCont...)
 
 	return score, continuation
+}
+
+// searchAtDepth runs one iterative-deepening iteration at the given target depth.
+func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, score float64, err error) {
+	ai.bfsDepth = depth
+
+	buffer := &ai.buffers[0]
+	alpha := -(mateValue + 1)
+	beta := mateValue + 1
+	ai.sharedAlpha.Store(math.Float64bits(alpha))
+
+	moveEvals := ai.getMoveEvals(g, buffer, 1)
+	if len(moveEvals) == 0 {
+		return nil, 0, ErrNoMoves
+	}
+
+	// Try the previous iteration's best move first.
+	cached, ok := ai.cache.Get(g.Hash)
+	if ok {
+		for i := range moveEvals {
+			if moveEvals[i].move == cached.move() {
+				// Shift all prev indexes down by one, and put the cached move at index 0.
+				cachedMove := moveEvals[i]
+				for j := i; j > 0; j-- {
+					moveEvals[j] = moveEvals[j-1]
+				}
+				moveEvals[0] = cachedMove
+
+				break
+			}
+		}
+	}
+
+	bestScore, bestContinuation := ai.searchRootMove(g, buffer, 0, moveEvals[0], alpha, beta)
+	alpha = math.Max(alpha, bestScore)
+
+	// Parallel search of the remaining moves with tightened alpha.
+	if alpha < beta && !ai.stopFlag.Load() && len(moveEvals) > 1 {
+		bestScore, bestContinuation = ai.searchRootMovesParallel(g, moveEvals[1:], beta, bestScore, bestContinuation)
+	}
+
+	if len(bestContinuation) > 0 && !ai.stopFlag.Load() {
+		ai.cache.Set(g.Hash, bestContinuation[0], bestScore, int8(depth), BoundExact)
+	}
+
+	return bestContinuation, bestScore, nil
 }
 
 // searchRootMovesParallel searches the given candidates concurrently — one goroutine per

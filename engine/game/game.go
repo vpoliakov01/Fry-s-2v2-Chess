@@ -11,6 +11,8 @@ type Game struct {
 	Winner       Team // Red/Yellow win: 1, Blue/Green win: -1.
 	MoveNumber   int
 
+	Hash uint64 `json:"-"` // Zobrist hash, maintained incrementally by Play/UnplayMove.
+
 	squareBuffer []Square `json:"-"` // Reusable per-piece destination buffer for GetMoves; not shared across copies.
 }
 
@@ -24,6 +26,7 @@ func New() *Game {
 	}
 
 	g.Board.SetStartingPosition()
+	g.ComputeHash()
 
 	return &g
 }
@@ -37,6 +40,7 @@ func (g *Game) GetMoves(dst []Move) []Move {
 	for from := range g.Board.PieceSquares[g.ActivePlayer] {
 		piece := g.Board.GetPiece(from)
 		g.squareBuffer = piece.GetMoves(g.Board, from, g.squareBuffer[:0])
+
 		for _, to := range g.squareBuffer {
 			dst = append(dst, Move{from, to})
 		}
@@ -47,29 +51,49 @@ func (g *Game) GetMoves(dst []Move) []Move {
 
 // Play plays a move in the game.
 func (g *Game) Play(move Move) Piece {
-	capturedPiece := Piece(g.Board.GetPiece(move.To))
+	movingPiece := g.Board.GetPiece(move.From)
+	capturedPiece := g.Board.GetPiece(move.To)
+
+	g.Hash ^= pieceHashes[movingPiece][move.From.Rank][move.From.File]
+	g.Hash ^= pieceHashes[movingPiece][move.To.Rank][move.To.File]
+
 	if !capturedPiece.IsEmpty() {
 		if capturedPiece.Kind() == KindKing {
 			g.Winner = g.ActivePlayer.Team()
 		}
+
+		g.Hash ^= pieceHashes[capturedPiece][move.To.Rank][move.To.File]
 	}
 
 	g.Board.Move(move)
-	g.ActivePlayer = (g.ActivePlayer + 1) % 4
 	g.MoveNumber++
+
+	g.Hash ^= activePlayerHashes[g.ActivePlayer]
+	g.ActivePlayer = (g.ActivePlayer + 1) % 4
+	g.Hash ^= activePlayerHashes[g.ActivePlayer]
 
 	return capturedPiece
 }
 
 // UnplayMove undoes a move in the game.
 func (g *Game) UnplayMove(move Move, capturedPiece Piece) {
-	g.MoveNumber--
+	g.Hash ^= activePlayerHashes[g.ActivePlayer]
 	g.ActivePlayer = (g.ActivePlayer + 3) % 4
+	g.Hash ^= activePlayerHashes[g.ActivePlayer]
 
+	g.MoveNumber--
 	g.Board.Unmove(move, capturedPiece)
 
-	if !capturedPiece.IsEmpty() && capturedPiece.Kind() == KindKing {
-		g.Winner = 0
+	movingPiece := g.Board.GetPiece(move.From)
+	g.Hash ^= pieceHashes[movingPiece][move.From.Rank][move.From.File]
+	g.Hash ^= pieceHashes[movingPiece][move.To.Rank][move.To.File]
+
+	if !capturedPiece.IsEmpty() {
+		if capturedPiece.Kind() == KindKing {
+			g.Winner = 0
+		}
+
+		g.Hash ^= pieceHashes[capturedPiece][move.To.Rank][move.To.File]
 	}
 }
 

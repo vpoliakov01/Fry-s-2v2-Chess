@@ -10,6 +10,7 @@ const (
 	// Store the piece as ppkkk (last 3 bits specify the kind, 2 bits before them specify the player).
 	pieceBitOffset = 3
 	pieceBitMask   = 7 // 00000111.
+	pieceVariants  = 32
 )
 
 type Piece uint8 // Use uint8 to save some space (the board is a [][]Piece).
