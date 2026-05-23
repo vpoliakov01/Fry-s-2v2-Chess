@@ -84,7 +84,8 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 	eval := ai.EvaluateCurrent(g, buffer)
 
 	var cachedMove game.Move
-	if cached, ok := ai.cache.Get(g.Hash); ok {
+	cached, ok := ai.cache.Get(g.Hash)
+	if ok {
 		cachedMove = cached.move()
 	}
 

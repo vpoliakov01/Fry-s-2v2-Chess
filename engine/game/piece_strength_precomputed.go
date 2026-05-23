@@ -17,7 +17,7 @@ func init() {
 	for pieceKind := range PiecePositionBonus {
 		for rank := 0; rank < BoardSize; rank++ {
 			for file := 0; file < BoardSize; file++ {
-				StrengthPrecomputed[pieceKind][rank][file] = PiecePositionBonus[pieceKind](Square{rank, file})
+				StrengthPrecomputed[pieceKind][rank][file] = Strength[pieceKind] * PiecePositionBonus[pieceKind](Square{rank, file})
 			}
 		}
 	}

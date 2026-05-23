@@ -77,6 +77,16 @@ func (s *TestSuite) SetupTest() {
 3. e2-e3 d11-a8 h14-k11 n7-l9`,
 		},
 		{
+			name:     "Queen trap",
+			bestMove: "l6-k5",
+			pgn: `
+1. h2-h3 b7-d7 g13-g12 m8-k8
+2. g1-k5 a8-g2 h14-g13 n9-h3
+3. f1-g2 b6-c6 j13-j12 h3-i2
+4. h1-i2 a6-g12 f13-g12 m6-l6
+5. j2-j3 b10-c10 g13-k9`,
+		},
+		{
 			name: "4 queens in the middle, bishops ready",
 			pgn: `
 1. h2-h3 b9-c9 i13-i12 m8-l8
