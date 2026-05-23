@@ -42,6 +42,20 @@ func NewTranspositionTable() *TranspositionTable {
 	}
 }
 
+// Clear zeroes every entry. Intended for fresh-game resets so old positions
+// don't compete for slots with new ones.
+func (t *TranspositionTable) Clear() {
+	for i := range t.shards {
+		t.shards[i].Lock()
+	}
+
+	clear(t.entries)
+
+	for i := range t.shards {
+		t.shards[i].Unlock()
+	}
+}
+
 // Get returns the entry for key; ok is false if the slot holds a different key.
 func (t *TranspositionTable) Get(key uint64) (cachedEntry entry, ok bool) {
 	idx := key & TTIndexMask

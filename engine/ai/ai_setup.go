@@ -47,6 +47,14 @@ func (ai *AI) Stop() {
 	ai.stopFlag.Store(true)
 }
 
+// ResetCache discards all transposition-table entries. Call when starting a new
+// game or loading a position so unrelated old entries don't crowd new ones.
+func (ai *AI) ResetCache() {
+	if ai.cache != nil {
+		ai.cache.Clear()
+	}
+}
+
 // loadSharedAlpha returns the current shared root-level alpha as float64.
 func (ai *AI) loadSharedAlpha() float64 {
 	return math.Float64frombits(ai.sharedAlpha.Load())

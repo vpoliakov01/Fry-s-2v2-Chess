@@ -3,28 +3,39 @@ package game
 const (
 	BoardSize  = 14
 	CornerSize = 3 // 2v2 chess board has corners (3 x 3) cut out.
+
+	// MaxPiecesPerPlayer is the upper bound on per-player piece count (8 pawns + 8 pieces).
+	MaxPiecesPerPlayer = 16
+
+	noPieceIndex = int8(-1)
 )
 
 // Board represents the chess board.
 type Board struct {
-	Grid         [BoardSize][BoardSize]Piece    `json:"grid"`
-	PieceSquares map[Player]map[Square]struct{} `json:"-"`
+	Grid         [BoardSize][BoardSize]Piece   `json:"grid"`
+	PieceSquares [4][]Square                   `json:"-"` // Per-player slice of occupied squares
+	pieceIndex   [4][BoardSize][BoardSize]int8 `json:"-"` // Maps each occupied square to its index in PieceSquares for O(1) removal via swap-with-last
 }
 
 // NewBoard creates a new board.
 func NewBoard() *Board {
-	b := Board{
-		Grid:         [BoardSize][BoardSize]Piece{}, // Use an array instead of slice for perf optimization.
-		PieceSquares: map[Player]map[Square]struct{}{},
-	}
+	b := Board{}
 
 	for player := 0; player < 4; player++ {
-		b.PieceSquares[Player(player)] = map[Square]struct{}{}
+		b.PieceSquares[player] = make([]Square, 0, MaxPiecesPerPlayer)
+
+		for rank := 0; rank < BoardSize; rank++ {
+			for file := 0; file < BoardSize; file++ {
+				b.pieceIndex[player][rank][file] = noPieceIndex
+			}
+		}
 	}
 
 	for rank := 0; rank < BoardSize; rank++ {
 		for file := 0; file < BoardSize; file++ {
-			if !IsSquareValid(rank, file) {
+			if IsSquareValid(rank, file) {
+				b.Grid[rank][file] = Piece(EmptySquare)
+			} else {
 				b.Grid[rank][file] = Piece(InactiveSquare)
 			}
 		}
@@ -47,33 +58,60 @@ func (b *Board) IsEmpty(s Square) bool {
 
 // Clear clears all the pieces of the board.
 func (b *Board) Clear() {
-	newBoard := NewBoard()
-	*b = *newBoard
+	*b = *NewBoard()
 }
 
 // PlacePiece places a piece onto the board.
 func (b *Board) PlacePiece(piece Piece, square Square) {
 	b.Grid[square.Rank][square.File] = piece
-	b.PieceSquares[piece.Player()][square] = struct{}{}
+	b.addToPieceSquares(piece.Player(), square)
 }
 
-// SetPieceSquares sets PieceSquares.
+// SetPieceSquares rebuilds PieceSquares from Grid; use after a manual board edit
+// or deserialization that didn't go through Play / PlacePiece.
 func (b *Board) SetPieceSquares() {
-	b.PieceSquares = map[Player]map[Square]struct{}{}
 	for player := 0; player < 4; player++ {
-		b.PieceSquares[Player(player)] = map[Square]struct{}{}
+		b.PieceSquares[player] = b.PieceSquares[player][:0]
+
+		for rank := 0; rank < BoardSize; rank++ {
+			for file := 0; file < BoardSize; file++ {
+				b.pieceIndex[player][rank][file] = noPieceIndex
+			}
+		}
 	}
 
 	for rank := 0; rank < BoardSize; rank++ {
 		for file := 0; file < BoardSize; file++ {
 			square := Square{rank, file}
-
-			if square.IsValid() && !b.IsEmpty(square) {
-				piece := b.GetPiece(square)
-				b.PieceSquares[piece.Player()][square] = struct{}{}
+			if !square.IsValid() || b.IsEmpty(square) {
+				continue
 			}
+
+			piece := b.GetPiece(square)
+			b.addToPieceSquares(piece.Player(), square)
 		}
 	}
+}
+
+// addToPieceSquares records that player owns the piece at square.
+func (b *Board) addToPieceSquares(player Player, square Square) {
+	b.pieceIndex[player][square.Rank][square.File] = int8(len(b.PieceSquares[player]))
+	b.PieceSquares[player] = append(b.PieceSquares[player], square)
+}
+
+// removeFromPieceSquares drops square from player's tracking using swap-with-last.
+func (b *Board) removeFromPieceSquares(player Player, square Square) {
+	idx := b.pieceIndex[player][square.Rank][square.File]
+	last := int8(len(b.PieceSquares[player])) - 1
+
+	if idx != last {
+		moved := b.PieceSquares[player][last]
+		b.PieceSquares[player][idx] = moved
+		b.pieceIndex[player][moved.Rank][moved.File] = idx
+	}
+
+	b.PieceSquares[player] = b.PieceSquares[player][:last]
+	b.pieceIndex[player][square.Rank][square.File] = noPieceIndex
 }
 
 // SetStartingPosition sets the pieces for 4 players.
@@ -104,35 +142,23 @@ func (b *Board) SetStartingPosition() {
 
 // Copy returns a deep copy of the board.
 func (b *Board) Copy() *Board {
-	board := *b
-	board.PieceSquares = map[Player]map[Square]struct{}{}
-
-	for player := range b.PieceSquares {
-		copy := map[Square]struct{}{}
-
-		for square := range b.PieceSquares[player] {
-			copy[square] = struct{}{}
-		}
-
-		board.PieceSquares[player] = copy
+	board := *b // copies Grid and pieceIndex arrays by value
+	for player := 0; player < 4; player++ {
+		board.PieceSquares[player] = append([]Square(nil), b.PieceSquares[player]...)
 	}
-
 	return &board
 }
 
 // Move performs a move of a piece on the board.
 func (b *Board) Move(move Move) {
 	if !b.IsEmpty(move.To) {
-		capturedPiece := Piece(b.GetPiece(move.To))
-		opponent := capturedPiece.Player()
-
-		delete(b.PieceSquares[opponent], move.To)
+		capturedPiece := b.GetPiece(move.To)
+		b.removeFromPieceSquares(capturedPiece.Player(), move.To)
 	}
 
-	player := Piece(b.GetPiece(move.From)).Player()
-
-	delete(b.PieceSquares[player], move.From)
-	b.PieceSquares[player][move.To] = struct{}{}
+	player := b.GetPiece(move.From).Player()
+	b.removeFromPieceSquares(player, move.From)
+	b.addToPieceSquares(player, move.To)
 
 	b.Grid[move.To.Rank][move.To.File] = b.Grid[move.From.Rank][move.From.File]
 	b.Grid[move.From.Rank][move.From.File] = Piece(EmptySquare)
@@ -143,11 +169,11 @@ func (b *Board) Unmove(move Move, capturedPiece Piece) {
 	b.Grid[move.From.Rank][move.From.File] = b.Grid[move.To.Rank][move.To.File]
 	b.Grid[move.To.Rank][move.To.File] = capturedPiece
 
-	player := Piece(b.GetPiece(move.From)).Player()
-	b.PieceSquares[player][move.From] = struct{}{}
-	delete(b.PieceSquares[player], move.To)
+	player := b.GetPiece(move.From).Player()
+	b.removeFromPieceSquares(player, move.To)
+	b.addToPieceSquares(player, move.From)
 
 	if !capturedPiece.IsEmpty() {
-		b.PieceSquares[capturedPiece.Player()][move.To] = struct{}{}
+		b.addToPieceSquares(capturedPiece.Player(), move.To)
 	}
 }

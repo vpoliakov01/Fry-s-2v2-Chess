@@ -135,7 +135,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 	buffer.moveIndexesToSearch[depth] = moveIndexesToSearch
 
 	bestMoveIndex := moveIndexesToSearch[0]
-	bestScore := -1000.0
+	bestScore := -mateValue - 1
 	bestMove := game.Move{}
 
 	for _, i := range moveIndexesToSearch {
@@ -204,8 +204,8 @@ func (ai *AI) EvaluateCurrent(g *game.Game, buffer *buffer) float64 {
 	}
 
 	// For each piece, run piece strength evaluation.
-	for player := range g.Board.PieceSquares {
-		for square := range g.Board.PieceSquares[player] {
+	for player := game.Player(0); player < 4; player++ {
+		for _, square := range g.Board.PieceSquares[player] {
 			piece := g.Board.GetPiece(square)
 			playerStrengths[player] += piece.GetStrength(g.Board, square, player)
 		}

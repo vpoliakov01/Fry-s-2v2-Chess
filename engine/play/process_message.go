@@ -110,6 +110,7 @@ func (c *Connection) processLoadGame(data string) {
 		return
 	}
 	c.gs = game
+	c.engine.ResetCache()
 
 	c.SendMessage(MessageTypeLoadGameResponse, LoadGameResponse{
 		PastMoves:   PGNMovesFromGameMoves(c.gs.PastMoves),
@@ -122,6 +123,7 @@ func (c *Connection) processNewGame() {
 	c.stopPlayingEngineMovesIfRunning(true)
 
 	c.gs = g.NewGameSession()
+	c.engine.ResetCache()
 	c.SendMessage(MessageTypeLoadGameResponse, LoadGameResponse{
 		PastMoves:   PGNMovesFromGameMoves(c.gs.PastMoves),
 		CurrentMove: c.gs.CurrentMove,
@@ -169,7 +171,7 @@ func (c *Connection) playUntilPlayerMove() {
 		if c.gs.HasEnded() {
 			winningTeam := c.gs.Winner
 			losingKing := g.Player(0)
-			for player := range c.gs.Board.PieceSquares {
+			for player := g.Player(0); player < 4; player++ {
 				if !c.gs.HasKing(player) {
 					losingKing = player
 					break

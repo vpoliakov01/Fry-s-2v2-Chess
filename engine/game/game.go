@@ -37,7 +37,7 @@ func (g *Game) GetMoves(dst []Move) []Move {
 		return dst
 	}
 
-	for from := range g.Board.PieceSquares[g.ActivePlayer] {
+	for _, from := range g.Board.PieceSquares[g.ActivePlayer] {
 		piece := g.Board.GetPiece(from)
 		g.squareBuffer = piece.GetMoves(g.Board, from, g.squareBuffer[:0])
 
@@ -99,9 +99,8 @@ func (g *Game) UnplayMove(move Move, capturedPiece Piece) {
 
 // HasKing checks if the player still has a king.
 func (g *Game) HasKing(player Player) bool {
-	for square := range g.Board.PieceSquares[player] {
-		piece := Piece(g.Board.GetPiece(square))
-		if piece.Kind() == KindKing {
+	for _, square := range g.Board.PieceSquares[player] {
+		if g.Board.GetPiece(square).Kind() == KindKing {
 			return true
 		}
 	}
