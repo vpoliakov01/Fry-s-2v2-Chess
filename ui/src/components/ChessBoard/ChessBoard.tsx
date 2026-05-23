@@ -15,7 +15,6 @@ export function ChessBoard() {
 		moves,
 		availableMoves,
 		selectedSquare,
-		score,
 		movePiece,
 		setSelectedSquare,
 		displaySettings,
@@ -25,6 +24,8 @@ export function ChessBoard() {
 		handleSquareRightMouseUp,
 		handleSquareLeftClick,
 	} = useBoardStateContext();
+
+	const selectedScore = moves[moves.length - 1]?.score ?? null;
 
 	const higlightedSquares: { row: number, col: number, color: Color }[] = [];
 	for (let i = moves.length - 1; i >= 0 && i > moves.length - 5; i--) {
@@ -129,7 +130,11 @@ export function ChessBoard() {
 
 	return (
 		<div className={styles.boardContainer}>
-			<ScoreDisplay score={score} hidden={!displaySettings.showEvalBar} showScore={displaySettings.showEvalBarScore} />
+			<ScoreDisplay
+				score={selectedScore}
+				hidden={!displaySettings.showEvalBar}
+				showScore={displaySettings.showEvalBarScore}
+			/>
 			<div className={styles.boardInnerContainer}>
 				<div className={styles.board}>
 					{Array(BOARD_SIZE).fill(null).map((_, row) => (

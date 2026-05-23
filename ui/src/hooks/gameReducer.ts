@@ -193,6 +193,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 					to,
 					state.board[from.row][from.col]!,
 					state.board[to.row][to.col] ?? null,
+					score,
 				);
 				const newBoard = state.board.map(row => [...row]);
 				newBoard[to.row][to.col] = newBoard[from.row][from.col];
@@ -209,7 +210,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 			}
 
 			const endBoard = replayBoard(state.allMoves, state.allMoves.length - 1);
-			const newMoveInfo = new MoveInfo(from, to, endBoard[from.row][from.col]!, endBoard[to.row][to.col] ?? null);
+			const newMoveInfo = new MoveInfo(from, to, endBoard[from.row][from.col]!, endBoard[to.row][to.col] ?? null, score);
 			newMoveInfo.continuation = convertContinuationToMoveInfo(continuation, endBoard);
 			return { ...state, allMoves: [...state.allMoves, newMoveInfo], score };
 		}

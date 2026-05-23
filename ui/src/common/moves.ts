@@ -24,7 +24,13 @@ export class Move {
 }
 
 export class MoveInfo extends Move {
-	constructor(public from: Position, public to: Position, public piece: Piece, public capturedPiece: Piece | null) {
+	constructor(
+		public from: Position,
+		public to: Position,
+		public piece: Piece,
+		public capturedPiece: Piece | null,
+		public score: number | null = null,
+	) {
 		super(from, to);
 	}
 

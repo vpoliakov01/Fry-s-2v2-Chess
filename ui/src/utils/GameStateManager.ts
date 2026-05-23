@@ -135,7 +135,9 @@ export class GameStateManager {
 
 	private static deserialize(data: any): SavedBoardState {
 		const deserializeContinuation = (raw: any): MoveInfo[] =>
-			Array.isArray(raw) ? raw.map((m: any) => new MoveInfo(m.from, m.to, m.piece, m.capturedPiece)) : [];
+			Array.isArray(raw)
+				? raw.map((m: any) => new MoveInfo(m.from, m.to, m.piece, m.capturedPiece, m.score ?? null))
+				: [];
 
 		return {
 			board: Array.isArray(data.board)
@@ -148,7 +150,7 @@ export class GameStateManager {
 			activePlayer: data.activePlayer || Color.Red,
 			allMoves: Array.isArray(data.allMoves)
 				? data.allMoves.map((move: any) => {
-					const info = new MoveInfo(move.from, move.to, move.piece, move.capturedPiece);
+					const info = new MoveInfo(move.from, move.to, move.piece, move.capturedPiece, move.score ?? null);
 					if (Array.isArray(move.continuation)) {
 						info.continuation = deserializeContinuation(move.continuation);
 					}
