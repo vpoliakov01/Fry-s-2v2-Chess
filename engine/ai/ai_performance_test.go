@@ -9,6 +9,42 @@ import (
 	"github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
 
+func (s *TestSuite) TestConsecutiveMoves() {
+	engine := New(16, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	g := s.GetGame("4 queens in the middle, bishops ready").Copy()
+	moves := 10
+
+	startTime := time.Now()
+	for i := 0; i < moves; i++ {
+		continuation, score, err := engine.GetBestMove(g.Game)
+		if err != nil {
+			if err == ErrGameEnded {
+				fmt.Printf("%v: Team %v won!\n", i, g.Winner)
+			} else {
+				fmt.Println(err)
+			}
+			break
+		}
+		move := continuation[0]
+
+		piece := game.Piece(g.Board.GetPiece(move.From))
+		if !g.Board.IsEmpty(move.To) {
+			capturedPiece := game.Piece(g.Board.GetPiece(move.To))
+			fmt.Printf("%v: %v takes %v after %v\n", i, piece, capturedPiece, move)
+		} else {
+			fmt.Printf("%v: %v moves %v\n", i, piece, move)
+		}
+
+		g.Play(move)
+		g.Board.Draw()
+		fmt.Printf("Evaluation:    %.2f\n", score)
+		fmt.Println("Continuation: ", continuation)
+	}
+
+	fmt.Println("Depth: ", engine.Depth)
+	fmt.Println(time.Since(startTime))
+}
+
 func (s *TestSuite) TestEngineDepthsPerformance() {
 	r := s.Require()
 

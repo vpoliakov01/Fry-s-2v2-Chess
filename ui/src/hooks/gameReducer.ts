@@ -183,7 +183,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 				formatNumber(time, 3, 2, 's'),
 				formatNumber(score, 5, 2),
 				formatNumber(evaluations / 1000, 5, 2, 'k'),
-				formatNumber(time / evaluations * 1e6, 4, 0, 'μs'),
+				formatNumber(time * 1e9 / evaluations, 4, 0, 'ns'),
 			);
 			const { from, to } = Move.fromPGN(continuation[0]);
 
@@ -210,7 +210,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 			}
 
 			const endBoard = replayBoard(state.allMoves, state.allMoves.length - 1);
-			const newMoveInfo = new MoveInfo(from, to, endBoard[from.row][from.col]!, endBoard[to.row][to.col] ?? null, score);
+			const newMoveInfo = new MoveInfo(
+				from,
+				to,
+				endBoard[from.row][from.col]!,
+				endBoard[to.row][to.col] ?? null,
+				score,
+			);
 			newMoveInfo.continuation = convertContinuationToMoveInfo(continuation, endBoard);
 			return { ...state, allMoves: [...state.allMoves, newMoveInfo], score };
 		}
