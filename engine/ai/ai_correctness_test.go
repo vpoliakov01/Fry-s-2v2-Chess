@@ -12,7 +12,7 @@ func (s *TestSuite) TestGetBestMove() {
 	r := s.Require()
 
 	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
-	gameFilter := "Queen trap"
+	gameFilter := ""
 
 	games := s.solvedGames
 	if gameFilter != "" {
@@ -54,7 +54,7 @@ func (s *TestSuite) TestGetBestMove() {
 		fmt.Println("Depth: ", engine.Depth)
 		fmt.Println(time.Since(startTime))
 
-		r.Equal(g.bestMove, move, "Incorrect best move for game %v: %s, expected %s", g.name, move, g.bestMove)
+		r.Equal(*g.bestMove, move, "Incorrect best move for game %v: %s, expected %s", g.name, move, g.bestMove)
 	}
 }
 
