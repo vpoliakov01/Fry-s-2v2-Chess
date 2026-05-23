@@ -8,10 +8,10 @@ const (
 
 // buffer holds per-worker per-depth reusable storage to avoid repeated allocations.
 type buffer struct {
-	moves               [][]game.Move
-	moveEvals           [][]moveScore
-	moveIndexesToSearch [][]int
-	continuation        [][]game.Move
+	moves         [][]game.Move
+	moveEvals     [][]moveScore
+	movesToSearch [][]moveScore
+	continuation  [][]game.Move
 
 	evalsCount int
 }
@@ -26,7 +26,7 @@ func (buff *buffer) init(maxDepth int) {
 
 	buff.moves = make([][]game.Move, maxDepth)
 	buff.moveEvals = make([][]moveScore, maxDepth)
-	buff.moveIndexesToSearch = make([][]int, maxDepth)
+	buff.movesToSearch = make([][]moveScore, maxDepth)
 	buff.continuation = make([][]game.Move, maxDepth)
 
 	for d := range buff.continuation {
@@ -36,7 +36,7 @@ func (buff *buffer) init(maxDepth int) {
 	for i := range buff.moves {
 		buff.moves[i] = make([]game.Move, 0, MovesUpperBound)
 		buff.moveEvals[i] = make([]moveScore, 0, MovesUpperBound)
-		buff.moveIndexesToSearch[i] = make([]int, 0, MovesUpperBound)
+		buff.movesToSearch[i] = make([]moveScore, 0, MovesUpperBound)
 	}
 }
 

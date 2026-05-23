@@ -71,7 +71,10 @@ func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64
 	bestScore := 0.0
 	haveResult := false
 
-	for depth := 1; depth <= ai.Depth; depth++ {
+	depthStep := 1
+	for depth := 1; depth < ai.Depth+depthStep; depth += depthStep {
+		depth = min(depth, ai.Depth)
+
 		cont, score, err := ai.searchAtDepth(g, depth)
 		if err != nil {
 			if !haveResult {
@@ -128,17 +131,12 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 		}
 	}
 
-	moveEvals := ai.getMoveEvals(g, buffer, depth)
+	movesToSearch := ai.GetMovesToSearch(g, buffer, depth, eval, cachedMove)
 
-	// Filter promising moves to actually search.
-	moveIndexesToSearch := ai.GetMoveIndexesToSearch(g, moveEvals, depth, cachedMove, buffer.moveIndexesToSearch[depth][:0])
-	buffer.moveIndexesToSearch[depth] = moveIndexesToSearch
-
-	bestMoveIndex := moveIndexesToSearch[0]
 	bestScore := -mateValue - 1
 	bestMove := game.Move{}
 
-	for _, i := range moveIndexesToSearch {
+	for _, ms := range movesToSearch {
 		// If other workers updated alpha, tighten.
 		if depth == 2 {
 			newBeta := -ai.loadSharedAlpha()
@@ -148,19 +146,17 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 			}
 		}
 
-		move := moveEvals[i].move
-		childEval := -moveEvals[i].score
+		move := ms.move
+		childEval := -ms.score
 
 		capturedPiece := g.Play(move)
 		opponentScore := ai.Negamax(g, buffer, cpu, depth+1, childEval, -beta, -alpha)
 		g.UnplayMove(move, capturedPiece)
 
 		score := fromOpponentScore(opponentScore)
-		moveEvals[i].score = score
 
 		if score > bestScore {
 			bestScore = score
-			bestMoveIndex = i
 			bestMove = move
 
 			continuation := buffer.continuation[depth][:0]
@@ -182,11 +178,20 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 	}
 
 	if ai.enableDebug {
+		// Locate bestMove in the full sorted move list to report its ordering index.
+		moveEvals := buffer.moveEvals[depth]
+		bestMoveIndex := 0
+		for i := range moveEvals {
+			if moveEvals[i].move == bestMove {
+				bestMoveIndex = i
+				break
+			}
+		}
 		ai.recordBestMove(BestMoveData{
 			Depth:      depth,
 			MoveIndex:  bestMoveIndex,
 			TotalMoves: len(moveEvals),
-			ScoreDelta: moveEvals[bestMoveIndex].score - moveEvals[0].score,
+			ScoreDelta: bestScore - moveEvals[0].score,
 		}, cpu)
 	}
 
@@ -194,7 +199,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 }
 
 // EvaluateCurrent returns the difference between strengths of the team making the move and the opponent team.
-// Increments the worker's per-buffer eval count to avoid the shared-counter cache-line contention under parallel search.
+// Used to seed the absolute eval at the search root; per-move updates use EvaluateMove for an incremental delta.
 func (ai *AI) EvaluateCurrent(g *game.Game, buffer *buffer) float64 {
 	buffer.evalsCount++
 	playerStrengths := [4]float64{}
@@ -217,31 +222,74 @@ func (ai *AI) EvaluateCurrent(g *game.Game, buffer *buffer) float64 {
 	return float64(g.ActivePlayer.Team()) * (redYellowStrength - blueGreenStrength)
 }
 
-// GetMoveIndexesToSearch appends the indexes of moves worth searching to dst and returns the extended slice.
-// firstMove is an optional first move to prepend (can be game.NullMove).
-// TODO: This function should ideally go through all moves and pick the most promising ones
-// based on its own rules (capture value diff, piece position, king safety, etc.)
-func (ai *AI) GetMoveIndexesToSearch(g *game.Game, moveEvals []moveScore, depth int, firstMove game.Move, dst []int) []int {
-	movesLeft := max(ai.Spread-depth/4*ai.SpreadDrop, 1)
+// EvaluateMove returns the move's score from the moving player's perspective.
+func (ai *AI) EvaluateMove(g *game.Game, buffer *buffer, move game.Move) float64 {
+	buffer.evalsCount++
+
+	piece := g.Board.GetPiece(move.From)
+	player := piece.Player()
+
+	capturedPiece := g.Board.GetPiece(move.To)
+	captureValue := 0.0
+
+	if !capturedPiece.IsEmpty() {
+		if capturedPiece.Kind() == game.KindKing {
+			return mateValue
+		}
+		captureValue = capturedPiece.GetStrength(g.Board, move.To, capturedPiece.Player())
+	}
+
+	newStrength := piece.GetStrength(g.Board, move.To, player)
+	oldStrength := piece.GetStrength(g.Board, move.From, player)
+
+	return (newStrength - oldStrength) + captureValue
+}
+
+// GetMovesToSearch returns the moves worth searching, each tagged with its post-move absolute eval.
+// TODO: This function should ideally pick the most promising moves based on more rules
+// (capture value diff, piece position, king safety, etc.)
+func (ai *AI) GetMovesToSearch(g *game.Game, buffer *buffer, depth int, eval float64, firstMove game.Move) []moveScore {
+	moves := g.GetMoves(buffer.moves[depth][:0])
+	buffer.moves[depth] = moves // In case moves got reallocated by append inside GetMoves.
+
+	moveEvals := buffer.moveEvals[depth][:len(moves)]
+	for i, move := range moves {
+		moveEvals[i] = moveScore{move, eval + ai.EvaluateMove(g, buffer, move)}
+	}
+	buffer.moveEvals[depth] = moveEvals
+
+	movesLeft := len(moveEvals)
+	if depth > 1 {
+		movesLeft = max(ai.Spread-depth/4*ai.SpreadDrop, 1)
+	}
 	capturesLeft := movesLeft/2 + 1
 
+	sortMoveEvals(moveEvals)
+
+	movesToSearch := buffer.movesToSearch[depth][:0]
+
 	if firstMove != game.NullMove {
-		for i := range moveEvals {
-			if moveEvals[i].move == firstMove {
-				dst = append(dst, i)
+		for _, moveEval := range moveEvals {
+			if moveEval.move == firstMove {
+				movesToSearch = append(movesToSearch, moveEval)
+
+				if !g.Board.GetPiece(firstMove.To).IsEmpty() { // Capture
+					capturesLeft--
+				}
+
 				movesLeft--
 				break
 			}
 		}
 	}
 
-	for i, moveEval := range moveEvals {
-		if moveEval.move == firstMove {
-			continue
+	for _, moveEval := range moveEvals {
+		if movesLeft == 0 {
+			break
 		}
 
-		if movesLeft == 0 {
-			return dst
+		if moveEval.move == firstMove {
+			continue
 		}
 
 		if !g.Board.GetPiece(moveEval.move.To).IsEmpty() { // Capture
@@ -252,8 +300,9 @@ func (ai *AI) GetMoveIndexesToSearch(g *game.Game, moveEvals []moveScore, depth 
 		}
 
 		movesLeft--
-		dst = append(dst, i)
+		movesToSearch = append(movesToSearch, moveEval)
 	}
 
-	return dst
+	buffer.movesToSearch[depth] = movesToSearch
+	return movesToSearch
 }
