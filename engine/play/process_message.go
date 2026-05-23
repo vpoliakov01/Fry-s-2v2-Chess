@@ -46,10 +46,11 @@ func (c *Connection) ProcessMessage(msg *Message) {
 }
 
 func (c *Connection) processSetSettings(cfg Config) {
-	humanPlayersChanged := !AreHumanPlayersEqual(c.cfg.HumanPlayers, cfg.HumanPlayers)
-	if humanPlayersChanged {
-		c.stopPlayingEngineMovesIfRunning(slices.Contains(cfg.HumanPlayers, c.gs.ActivePlayer))
-		c.cfg.HumanPlayers = cfg.HumanPlayers
+	wasEngineActive := !slices.Contains(c.cfg.HumanPlayers, c.gs.ActivePlayer)
+	willBeEngineActive := !slices.Contains(cfg.HumanPlayers, c.gs.ActivePlayer)
+
+	if wasEngineActive && !willBeEngineActive {
+		c.stopPlayingEngineMovesIfRunning(true)
 	}
 
 	c.cfg = &cfg
@@ -63,7 +64,7 @@ func (c *Connection) processSetSettings(cfg Config) {
 		c.engine.EvalLimit = cfg.EvalLimit
 	}
 
-	if humanPlayersChanged && !slices.Contains(cfg.HumanPlayers, c.gs.ActivePlayer) {
+	if !wasEngineActive && willBeEngineActive {
 		c.playUntilPlayerMove()
 	} else {
 		c.processGetAvailableMoves()
@@ -189,8 +190,7 @@ func (c *Connection) playUntilPlayerMove() {
 	}()
 }
 
-// stopPlayingEngineMovesIfRunning cancels the currently running engine-moves
-// goroutine (if any) when the active player is not a human player.
+// stopPlayingEngineMovesIfRunning cancels the currently running engine-moves goroutine (if any).
 func (c *Connection) stopPlayingEngineMovesIfRunning(condition bool) {
 	if !condition {
 		return

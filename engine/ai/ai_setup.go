@@ -42,9 +42,12 @@ func WithEnableDebug(enableDebug bool) func(*AI) {
 	}
 }
 
-// Stop stops the engine.
+// Stop stops the engine and blocks until the running search has returned.
 func (ai *AI) Stop() {
 	ai.stopFlag.Store(true)
+	for !ai.hasStopped.Load() {
+		runtime.Gosched()
+	}
 }
 
 // ResetCache discards all transposition-table entries. Call when starting a new

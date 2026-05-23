@@ -165,6 +165,30 @@ func TestProcessConcurrencyBotsSwitchToPartialHumans(t *testing.T) {
 	}
 }
 
+func TestProcessSetSettingsActivePlayerStaysEngine(t *testing.T) {
+	cfg := &play.Config{
+		Depth:        4,
+		HumanPlayers: []game.Player{playerRed, playerBlue, playerYellow, playerGreen},
+	}
+	conn := NewConnection(t, cfg)
+
+	// Remove Red — engine must now play for Red.
+	removeRed := *cfg
+	removeRed.HumanPlayers = []game.Player{playerBlue, playerYellow, playerGreen}
+	conn.ProcessMessage(play.MessageTypeSetSettings, removeRed)
+
+	// Immediately remove Yellow too. Active is still Red, so the existing
+	// search should continue and no new one should be launched.
+	removeYellow := removeRed
+	removeYellow.HumanPlayers = []game.Player{playerBlue, playerGreen}
+	conn.ProcessMessage(play.MessageTypeSetSettings, removeYellow)
+
+	conn.WaitForMessagesOfType(play.MessageTypeAvailableMoves, 2)
+
+	require.Len(t, conn.MessagesOfType(play.MessageTypeEngineMove), 1,
+		"expected exactly one engineMove; multiple indicate concurrent engine searches")
+}
+
 func TestProcessSetSettingsSameHumanPlayers(t *testing.T) {
 	conn := NewConnection(t, nil)
 
