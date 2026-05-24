@@ -9,12 +9,12 @@ import (
 )
 
 func TestZobristInitialHashNonZero(t *testing.T) {
-	g := game.New()
+	g := game.NewGame()
 	require.NotZero(t, g.Hash, "initial position should have a non-zero hash")
 }
 
 func TestZobristPlayUnplayRoundtrip(t *testing.T) {
-	g := game.New()
+	g := game.NewGame()
 	originalHash := g.Hash
 
 	moves := g.GetMoves(nil)
@@ -29,7 +29,7 @@ func TestZobristPlayUnplayRoundtrip(t *testing.T) {
 }
 
 func TestZobristIncrementalMatchesRecompute(t *testing.T) {
-	g := game.New()
+	g := game.NewGame()
 
 	moves, err := game.ParsePGN(`
 1. h2-h3 b8-c8 i13-i12 m8-l8
@@ -48,8 +48,8 @@ func TestZobristIncrementalMatchesRecompute(t *testing.T) {
 }
 
 func TestZobristActivePlayerAffectsHash(t *testing.T) {
-	g1 := game.New()
-	g2 := game.New()
+	g1 := game.NewGame()
+	g2 := game.NewGame()
 
 	require.Equal(t, g1.Hash, g2.Hash, "two fresh games should hash equal")
 

@@ -1,6 +1,10 @@
-package game
+package ai
 
-import "math"
+import (
+	"math"
+
+	. "github.com/vpoliakov01/2v2ChessAI/engine/game"
+)
 
 const (
 	PiecesAtTheStart = 64
@@ -61,4 +65,19 @@ func GetAttackBonus(s Square, team Team) float64 {
 // CalculateBonusCoef calculates the overall bonus coef. (0.5, 1.5)
 func CalculateBonusCoef(moves, movesMin, movesMax int, positionCoef float64) float64 {
 	return (float64(moves-movesMin)/float64(movesMax-movesMin) + positionCoef) / 2
+}
+
+// GetPawnStrength returns the pawn's positional value.
+func GetPawnStrength(board *Board, square Square, player Player) float64 {
+	coef := 0.9
+	for _, dir := range PawnCaptureDirs[player] {
+		inFront := square.Add(dir[0], dir[1])
+		if !inFront.IsValid() || board.IsEmpty(inFront) {
+			continue
+		}
+
+		coef += 0.2
+	}
+
+	return Strength[KindPawn] * coef
 }

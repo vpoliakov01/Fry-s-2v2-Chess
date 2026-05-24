@@ -3,13 +3,13 @@ package game
 type Pawn Piece
 
 var (
-	pawnMoveDirs = [4][3][2]int{
+	PawnMoveDirs = [4][3][2]int{
 		{{1, 0}, {1, -1}, {1, 1}},
 		{{0, 1}, {-1, 1}, {1, 1}},
 		{{-1, 0}, {-1, -1}, {-1, 1}},
 		{{0, -1}, {-1, -1}, {1, -1}},
 	}
-	pawnCaptureDirs = [4][2][2]int{
+	PawnCaptureDirs = [4][2][2]int{
 		{{1, -1}, {1, 1}},
 		{{-1, 1}, {1, 1}},
 		{{-1, -1}, {-1, 1}},
@@ -17,10 +17,10 @@ var (
 	}
 )
 
-// GetMoves appends the pawn's moves to dst and returns the extended slice.
-func (p Pawn) GetMoves(board *Board, from Square, dst []Square) []Square {
+// GetPawnMoves appends the pawn's moves to dst and returns the extended slice.
+func GetPawnMoves(board *Board, from Square, dst []Square) []Square {
 	player := Piece(board.GetPiece(from)).Player()
-	dirs := pawnMoveDirs[player]
+	dirs := PawnMoveDirs[player]
 
 	// Move forward by 1.
 	to := from.Add(dirs[0][0], dirs[0][1])
@@ -56,22 +56,4 @@ func (p Pawn) GetMoves(board *Board, from Square, dst []Square) []Square {
 	// TODO: add en passant and promotions.
 
 	return dst
-}
-
-// GetStrength returns an estimate of the piece's strength.
-func (p Pawn) GetStrength(board *Board, square Square, player Player) float64 {
-	// Check pawn structure.
-	dirs := pawnCaptureDirs[player]
-
-	coef := 0.9
-	for _, dir := range dirs {
-		inFront := square.Add(dir[0], dir[1])
-		if !inFront.IsValid() || board.IsEmpty(inFront) {
-			continue
-		}
-
-		coef += 0.2
-	}
-
-	return Strength[KindPawn] * coef
 }

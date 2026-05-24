@@ -36,8 +36,9 @@ const (
 )
 
 type moveScore struct {
-	move  game.Move
-	score float64
+	move    game.Move
+	posEval float64
+	score   float64 // Used for move ordering and pruning.
 }
 
 func init() {
@@ -55,13 +56,6 @@ func WithEnableDebug(enableDebug bool) func(*AI) {
 func WithEnableDebugLogging(enableDebugLogging bool) func(*AI) {
 	return func(ai *AI) {
 		ai.enableDebugLogging = enableDebugLogging
-	}
-}
-
-// WithEnableStoredCache enables storing the transposition table to disk.
-func WithEnableStoredCache(enableStoredCache bool) func(*AI) {
-	return func(ai *AI) {
-		ai.enableStoredCache = enableStoredCache
 	}
 }
 

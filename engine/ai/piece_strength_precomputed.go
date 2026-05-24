@@ -1,4 +1,8 @@
-package game
+package ai
+
+import (
+	. "github.com/vpoliakov01/2v2ChessAI/engine/game"
+)
 
 var (
 	StrengthPrecomputed = [8][BoardSize][BoardSize]float64{}

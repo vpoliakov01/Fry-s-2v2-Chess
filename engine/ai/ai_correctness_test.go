@@ -11,8 +11,9 @@ import (
 func (s *TestSuite) TestGetBestMove() {
 	r := s.Require()
 
-	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	engine := New(12, 8, DefaultSpreadDrop, 0, WithEnableDebug(true))
 	gameFilter := ""
+	// gameFilter = "3 queens, mate in 6 (j4-m7)"
 
 	games := s.solvedGames
 	if gameFilter != "" {
@@ -37,22 +38,19 @@ func (s *TestSuite) TestGetBestMove() {
 		}
 
 		move := continuation[0]
-		piece := game.Piece(g.Board.GetPiece(move.From))
 
-		if !g.Board.IsEmpty(move.To) {
-			capturedPiece := game.Piece(g.Board.GetPiece(move.To))
-			fmt.Printf("%v: %vx%v %v\n", i, piece, capturedPiece, move)
-		} else {
-			fmt.Printf("%v: %v %v\n", i, piece, move)
-		}
-
+		moveStr := game.HumanReadableMove(g.Board, move)
+		g.Board.Draw()
 		g.Play(move)
 		g.Board.Draw()
 
-		fmt.Printf("Evaluation:    %.2f\n", score)
+		fmt.Println(moveStr)
+		fmt.Printf("Name:          %s\n", g.name)
 		fmt.Println("Continuation: ", continuation)
+		fmt.Printf("Evaluation:    %.2f\n", score)
 		fmt.Println("Depth: ", engine.Depth)
 		fmt.Println(time.Since(startTime))
+		fmt.Println()
 
 		r.Equal(*g.bestMove, move, "Incorrect best move for game %v: %s, expected %s", g.name, move, g.bestMove)
 	}
@@ -84,7 +82,7 @@ func (s *TestSuite) TestPosition() {
 		{int(game.NewPiece(0, game.KindQueen)), 10, 13},
 	}
 
-	g := game.New()
+	g := game.NewGame()
 	g.Board.Clear()
 
 	for i := range pieces {

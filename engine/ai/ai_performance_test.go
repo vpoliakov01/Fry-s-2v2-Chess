@@ -10,7 +10,7 @@ import (
 )
 
 func (s *TestSuite) TestConsecutiveMoves() {
-	engine := New(16, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
 	g := s.GetGame("4 queens in the middle, bishops ready").Copy()
 	moves := 10
 
@@ -27,18 +27,13 @@ func (s *TestSuite) TestConsecutiveMoves() {
 		}
 		move := continuation[0]
 
-		piece := game.Piece(g.Board.GetPiece(move.From))
-		if !g.Board.IsEmpty(move.To) {
-			capturedPiece := game.Piece(g.Board.GetPiece(move.To))
-			fmt.Printf("%v: %v takes %v after %v\n", i, piece, capturedPiece, move)
-		} else {
-			fmt.Printf("%v: %v moves %v\n", i, piece, move)
-		}
+		moveStr := game.HumanReadableMove(g.Board, move)
 
 		g.Play(move)
 		g.Board.Draw()
-		fmt.Printf("Evaluation:    %.2f\n", score)
+		fmt.Println(moveStr)
 		fmt.Println("Continuation: ", continuation)
+		fmt.Printf("Evaluation:    %.2f\n", score)
 	}
 
 	fmt.Println("Depth: ", engine.Depth)

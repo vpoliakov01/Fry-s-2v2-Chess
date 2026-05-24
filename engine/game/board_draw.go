@@ -34,3 +34,15 @@ func (b *Board) Draw() {
 
 	fmt.Println()
 }
+
+// HumanReadableMove returns a move in a human-readable format.
+func HumanReadableMove(b *Board, move Move) string {
+	piece := Piece(b.GetPiece(move.From))
+
+	if !b.IsEmpty(move.To) {
+		capturedPiece := Piece(b.GetPiece(move.To))
+		return fmt.Sprintf("%vx%v %v", piece, capturedPiece, move)
+	} else {
+		return fmt.Sprintf("%v %v", piece, move)
+	}
+}

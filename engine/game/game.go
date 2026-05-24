@@ -11,13 +11,12 @@ type Game struct {
 	Winner       Team // Red/Yellow win: 1, Blue/Green win: -1.
 	MoveNumber   int
 
-	Hash uint64 `json:"-"` // Zobrist hash, maintained incrementally by Play/UnplayMove.
-
-	squareBuffer []Square `json:"-"` // Reusable per-piece destination buffer for GetMoves; not shared across copies.
+	Hash         uint64   `json:"-"` // Zobrist hash, maintained incrementally by Play/UnplayMove.
+	SquareBuffer []Square `json:"-"` // Reusable per-piece destination buffer for GetMoves; not shared across copies.
 }
 
-// New creates a new Game.
-func New() *Game {
+// NewGame creates a new Game.
+func NewGame() *Game {
 	g := Game{
 		ActivePlayer: 0,
 		Board:        NewBoard(),
@@ -39,9 +38,9 @@ func (g *Game) GetMoves(dst []Move) []Move {
 
 	for _, from := range g.Board.PieceSquares[g.ActivePlayer] {
 		piece := g.Board.GetPiece(from)
-		g.squareBuffer = piece.GetMoves(g.Board, from, g.squareBuffer[:0])
+		g.SquareBuffer = piece.GetMoves(g.Board, from, g.SquareBuffer[:0])
 
-		for _, to := range g.squareBuffer {
+		for _, to := range g.SquareBuffer {
 			dst = append(dst, Move{from, to})
 		}
 	}
@@ -116,7 +115,7 @@ func (g *Game) HasEnded() bool {
 func (g *Game) Copy() *Game {
 	newGame := *g
 	newGame.Board = g.Board.Copy()
-	newGame.squareBuffer = nil // Don't share scratch buffer with the source.
+	newGame.SquareBuffer = nil // Don't share scratch buffer with the source.
 	return &newGame
 }
 

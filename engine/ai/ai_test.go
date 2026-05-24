@@ -69,7 +69,7 @@ func (s *TestSuite) SetupTest() {
 1. h2-h3 b8-c8 i13-i12 m8-l8`,
 		},
 		{
-			name:     "3 queens, mate in 6 (j4-m7)",
+			name:     "3 queens, mate in 7 (j4-m7)",
 			bestMove: "j4-m7",
 			pgn: `
 1. h2-h3 b9-c9 i13-i12 m8-l8

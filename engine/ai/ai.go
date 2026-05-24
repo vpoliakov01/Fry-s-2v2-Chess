@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"fmt"
 	"math"
 	"sync/atomic"
 
@@ -26,8 +27,9 @@ type AI struct {
 	hasStopped  atomic.Bool // True when GetBestMove is not running.
 	sharedAlpha atomic.Uint64
 
-	enableDebug bool
-	BestMoves   [][]BestmoveDataAvgAcc
+	enableDebug        bool
+	enableDebugLogging bool
+	BestMoves          [][]BestmoveDataAvgAcc
 }
 
 // New creates a new AI.
@@ -159,7 +161,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 		}
 
 		move := ms.move
-		childEval := -ms.score
+		childEval := -ms.posEval
 
 		capturedPiece := g.Play(move)
 		opponentScore := ai.Negamax(g, buffer, cpu, depth+1, childEval, -beta, -alpha)
@@ -203,73 +205,28 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 			Depth:      depth,
 			MoveIndex:  bestMoveIndex,
 			TotalMoves: len(moveEvals),
-			ScoreDelta: bestScore - moveEvals[0].score,
+			ScoreDelta: bestScore - moveEvals[0].posEval,
 		}, cpu)
 	}
 
 	return bestScore
 }
 
-// EvaluateCurrent returns the difference between strengths of the team making the move and the opponent team.
-// Used to seed the absolute eval at the search root; per-move updates use EvaluateMove for an incremental delta.
-func (ai *AI) EvaluateCurrent(g *game.Game, buffer *buffer) float64 {
-	buffer.evalsCount++
-	playerStrengths := [4]float64{}
-
-	if g.HasEnded() {
-		return float64(g.ActivePlayer.Team()*g.Winner) * 1000
-	}
-
-	// For each piece, run piece strength evaluation.
-	for player := game.Player(0); player < 4; player++ {
-		for _, square := range g.Board.PieceSquares[player] {
-			piece := g.Board.GetPiece(square)
-			playerStrengths[player] += piece.GetStrength(g.Board, square, player)
-		}
-	}
-
-	redYellowStrength := playerStrengths[0] + playerStrengths[2] - math.Abs(playerStrengths[0]-playerStrengths[2])/3
-	blueGreenStrength := playerStrengths[1] + playerStrengths[3] - math.Abs(playerStrengths[1]-playerStrengths[3])/3
-
-	return float64(g.ActivePlayer.Team()) * (redYellowStrength - blueGreenStrength)
-}
-
-// EvaluateMove returns the move's score from the moving player's perspective.
-func (ai *AI) EvaluateMove(g *game.Game, buffer *buffer, move game.Move) float64 {
-	buffer.evalsCount++
-
-	piece := g.Board.GetPiece(move.From)
-	player := piece.Player()
-
-	capturedPiece := g.Board.GetPiece(move.To)
-	captureValue := 0.0
-
-	if !capturedPiece.IsEmpty() {
-		if capturedPiece.Kind() == game.KindKing {
-			return mateValue
-		}
-		captureValue = capturedPiece.GetStrength(g.Board, move.To, capturedPiece.Player())
-	}
-
-	newStrength := piece.GetStrength(g.Board, move.To, player)
-	oldStrength := piece.GetStrength(g.Board, move.From, player)
-
-	return (newStrength - oldStrength) + captureValue
-}
-
 // GetMovesToSearch returns the moves worth searching, each tagged with its post-move absolute eval.
-// TODO: This function should ideally pick the most promising moves based on more rules
-// (capture value diff, piece position, king safety, etc.)
 func (ai *AI) GetMovesToSearch(g *game.Game, buffer *buffer, depth int, eval float64, firstMove game.Move) []moveScore {
 	moves := g.GetMoves(buffer.moves[depth][:0])
 	buffer.moves[depth] = moves // In case moves got reallocated by append inside GetMoves.
+	board := g.Board
 
+	// Evaluate moves.
 	moveEvals := buffer.moveEvals[depth][:len(moves)]
 	for i, move := range moves {
-		moveEvals[i] = moveScore{move, eval + ai.EvaluateMove(g, buffer, move)}
+		posEval, moveEval := ai.EvaluateMove(g, buffer, eval, move)
+		moveEvals[i] = moveScore{move, posEval, moveEval}
 	}
 	buffer.moveEvals[depth] = moveEvals
 
+	// Decide how many moves to pick.
 	movesLeft := len(moveEvals)
 	if depth > 1 {
 		movesLeft = max(ai.Spread-depth/4*ai.SpreadDrop, 1)
@@ -280,12 +237,20 @@ func (ai *AI) GetMovesToSearch(g *game.Game, buffer *buffer, depth int, eval flo
 
 	movesToSearch := buffer.movesToSearch[depth][:0]
 
+	if ai.enableDebugLogging && depth == 1 {
+		for i, moveEval := range moveEvals {
+			move := moveEval.move
+			fmt.Println(i, " ", game.HumanReadableMove(board, move), "eval:", moveEval.posEval)
+		}
+	}
+
+	// Append the most promising external move.
 	if firstMove != game.NullMove {
 		for _, moveEval := range moveEvals {
 			if moveEval.move == firstMove {
 				movesToSearch = append(movesToSearch, moveEval)
 
-				if !g.Board.GetPiece(firstMove.To).IsEmpty() { // Capture
+				if !board.GetPiece(firstMove.To).IsEmpty() { // Capture
 					capturesLeft--
 				}
 
@@ -295,6 +260,7 @@ func (ai *AI) GetMovesToSearch(g *game.Game, buffer *buffer, depth int, eval flo
 		}
 	}
 
+	// Append the rest of the moves.
 	for _, moveEval := range moveEvals {
 		if movesLeft == 0 {
 			break
@@ -304,7 +270,7 @@ func (ai *AI) GetMovesToSearch(g *game.Game, buffer *buffer, depth int, eval flo
 			continue
 		}
 
-		if !g.Board.GetPiece(moveEval.move.To).IsEmpty() { // Capture
+		if !board.GetPiece(moveEval.move.To).IsEmpty() { // Capture
 			if capturesLeft == 0 {
 				continue
 			}

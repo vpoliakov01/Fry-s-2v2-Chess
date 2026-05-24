@@ -17,7 +17,7 @@ type GameSession struct {
 // convoluting the engine logic with game metadata.
 func NewGameSession() *GameSession {
 	return &GameSession{
-		Game:        New(),
+		Game:        NewGame(),
 		CurrentMove: -1,
 		PastMoves:   []Move{},
 	}
@@ -40,7 +40,7 @@ func (g *GameSession) SetCurrentMove(moveIndex int) error {
 	}
 	g.CurrentMove = moveIndex
 
-	g.Game = New()
+	g.Game = NewGame()
 	for i := 0; i <= moveIndex; i++ {
 		g.Game.Play(g.PastMoves[i])
 	}

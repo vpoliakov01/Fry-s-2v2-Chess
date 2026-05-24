@@ -32,6 +32,11 @@ func IsSquareValid(rank, file int) bool {
 		(file >= 0 && file < BoardSize && rank >= 0 && rank < BoardSize)
 }
 
+// IsWithin returns whether the square is within the given distance from the other square.
+func (s Square) IsWithin(other Square, distance float64) bool {
+	return float64((s.Rank-other.Rank)*(s.Rank-other.Rank)+(s.File-other.File)*(s.File-other.File)) <= distance*distance
+}
+
 func SquareFromPGN(pgn string) Square {
 	rank, err := strconv.Atoi(string(pgn[1:]))
 	if err != nil {

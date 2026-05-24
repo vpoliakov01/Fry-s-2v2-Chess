@@ -50,7 +50,17 @@ var (
 	rookDirs   = [][2]int{{-1, 0}, {0, -1}, {0, 1}, {1, 0}}
 	queenDirs  = [][2]int{{-1, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
 	kingDirs   = [][2]int{{-1, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
+
+	dirsByKind = [8][][2]int{}
 )
+
+func init() {
+	dirsByKind[KindKnight] = knightDirs
+	dirsByKind[KindBishop] = bishopDirs
+	dirsByKind[KindRook] = rookDirs
+	dirsByKind[KindQueen] = queenDirs
+	dirsByKind[KindKing] = kingDirs
+}
 
 // New creates a new Piece.
 func NewPiece(player Player, kind PieceKind) Piece {
@@ -87,46 +97,15 @@ func (p Piece) String() string {
 // GetMoves appends the moves this piece can make to dst and returns the extended slice.
 // Dispatches on Kind() so the call sites in the search hot path can inline.
 func (p Piece) GetMoves(board *Board, from Square, dst []Square) []Square {
-	switch p.Kind() {
-	case KindPawn:
-		return Pawn(p).GetMoves(board, from, dst)
-	case KindKnight:
-		return GetEnumeratedMoves(board, from, knightDirs, dst)
-	case KindBishop:
-		return GetDirectionalMoves(board, from, bishopDirs, dst)
-	case KindRook:
-		return GetDirectionalMoves(board, from, rookDirs, dst)
-	case KindQueen:
-		return GetDirectionalMoves(board, from, queenDirs, dst)
-	case KindKing:
-		return GetEnumeratedMoves(board, from, kingDirs, dst)
-	default:
-		panic(fmt.Sprintf("unsupported piece: %v", p))
-	}
-}
+	kind := p.Kind()
 
-// GetStrength returns the piece's strength at the given square.
-// Dispatches on Kind() so the call sites in the search hot path can inline.
-func (p Piece) GetStrength(board *Board, square Square, player Player) float64 {
-	switch p.Kind() {
+	switch kind {
+	case KindQueen, KindBishop, KindRook:
+		return GetDirectionalMoves(board, from, dirsByKind[kind], dst)
+	case KindKnight, KindKing:
+		return GetEnumeratedMoves(board, from, dirsByKind[kind], dst)
 	case KindPawn:
-		return Pawn(p).GetStrength(board, square, player)
-	case KindKnight:
-		return StrengthPrecomputed[KindKnight][square.Rank][square.File]
-	case KindBishop:
-		return StrengthPrecomputed[KindBishop][square.Rank][square.File]
-	case KindRook:
-		if player.Team() == 1 {
-			return StrengthPrecomputed[KindRook][square.Rank][square.File]
-		}
-		return StrengthPrecomputed[KindRook][square.File][square.Rank]
-	case KindQueen:
-		return StrengthPrecomputed[KindQueen][square.Rank][square.File]
-	case KindKing:
-		if player.Team() == 1 {
-			return StrengthPrecomputed[KindKing][square.Rank][square.File]
-		}
-		return StrengthPrecomputed[KindKing][square.File][square.Rank]
+		return GetPawnMoves(board, from, dst)
 	default:
 		panic(fmt.Sprintf("unsupported piece: %v", p))
 	}

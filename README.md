@@ -44,17 +44,17 @@ Some more positions reached by the engine playing itself:
 
 ## TODO:
 ### UI:
-* Add toggle for game / analysis
-* Add more settings
+* Move delay (?)
+* Thinking indicator
 
 ### Engine:
-* Filter moves returning captures, development moves, and king safety moves
+* Test with very sophisticated position evaluation
+    * Return 2 scores, eval of the position and how promising the move is
+    * Add king safety metrics / different moves exploration based on that
+* Store the cache between games (for first 20 moves?)
+* Run calculation in the background
 * Support castling
 * Support forced calculation for checks
-* Test with very sophisticated position evaluation
-    * Fully tune piece position strength
-    * Incorporate threat / liability
 
 ### Other:
-* Dockerize (1 for ui, 1 for the engine)
 * Update readme

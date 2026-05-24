@@ -18,7 +18,7 @@ func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, candidate mo
 	move := candidate.move
 
 	capturedPiece := g.Play(move)
-	opponentScore := ai.Negamax(g, buffer, cpu, 2, -candidate.score, -beta, -alpha)
+	opponentScore := ai.Negamax(g, buffer, cpu, 2, -candidate.posEval, -beta, -alpha)
 	g.UnplayMove(move, capturedPiece)
 
 	score = fromOpponentScore(opponentScore)

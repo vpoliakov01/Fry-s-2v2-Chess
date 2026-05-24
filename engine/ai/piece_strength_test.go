@@ -1,14 +1,13 @@
-package game_test
+package ai_test
 
 import (
 	"fmt"
 	"math/rand"
 	"runtime"
 	"sync"
-	"testing"
 	"time"
 
-	"github.com/stretchr/testify/suite"
+	. "github.com/vpoliakov01/2v2ChessAI/engine/ai"
 	. "github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
 
@@ -16,14 +15,6 @@ var (
 	iterations = int(5e7)
 	numCPUs    = runtime.NumCPU()
 )
-
-type TestSuite struct {
-	suite.Suite
-}
-
-func Test(t *testing.T) {
-	suite.Run(t, new(TestSuite))
-}
 
 // TestBonuses prints the values for the position bonus maps.
 func (s *TestSuite) TestBonuses() {
@@ -145,6 +136,9 @@ func (s *TestSuite) TestPieceStrengths() {
 		{name: "Queen", kind: KindQueen},
 		{name: "King", kind: KindKing},
 	}
+
+	g := NewGame()
+
 	for _, tc := range testCases {
 		fmt.Println(tc.name)
 		sum := 0.0
@@ -157,7 +151,8 @@ func (s *TestSuite) TestPieceStrengths() {
 					continue
 				}
 
-				board := NewBoard()
+				board := g.Board
+				board.Clear()
 				piece := NewPiece(0, tc.kind)
 				board.PlacePiece(piece, square)
 
