@@ -85,7 +85,7 @@ export function Arrow({ move, color, short = false }: ArrowProps) {
 }
 
 export function ArrowContainer() {
-	const { drawnArrows, isDrawingArrow, arrowStart, arrowEnd, hoveredMove, activePlayer } = useBoardStateContext();
+	const { drawnArrows, isDrawingArrow, arrowStart, arrowEnd, highlightedMove, activePlayer } = useBoardStateContext();
 
 	const arrows: ArrowProps[] = drawnArrows.map(arrow => ({
 		move: new Move(arrow.move.from, arrow.move.to),
@@ -96,8 +96,8 @@ export function ArrowContainer() {
 		arrows.push({ move: new Move(arrowStart, arrowEnd), color: activePlayer });
 	}
 
-	if (hoveredMove) {
-		arrows.push({ move: hoveredMove.move, color: hoveredMove.color });
+	if (highlightedMove) {
+		arrows.push({ move: highlightedMove.move, color: highlightedMove.color });
 	}
 
 	const arrowSquares = new Map<string, number>();

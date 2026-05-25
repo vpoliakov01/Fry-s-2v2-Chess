@@ -15,11 +15,9 @@ export interface SavedBoardState {
 }
 
 const showLabelsOptions = ['all', 'border', 'pieces', 'moves', 'moves+', 'none'] as const;
-const onMoveHoverOptions = ['set board', 'arrow', 'highlight', 'highlight+', 'none'] as const;
 const moveNotationOptions = ['PGN', 'SAN', 'FAN', 'FAN+'] as const;
 
 export type ShowLabels = typeof showLabelsOptions[number];
-export type OnMoveHover = typeof onMoveHoverOptions[number];
 export type MoveNotation = typeof moveNotationOptions[number];
 
 export interface DisplaySettingsState {

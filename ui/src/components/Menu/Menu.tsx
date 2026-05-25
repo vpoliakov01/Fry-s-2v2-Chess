@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { movesToPGN, PlayerColors } from '../../common';
+import React, { useState } from 'react';
+import { movesToPGN } from '../../common';
 import { useBoardStateContext } from '../../context/BoardStateContext';
 import { Message, MessageType } from '../../utils';
 import { CollapsibleBlock } from '../CollapsibleBlock';
@@ -11,45 +11,14 @@ import styles from './Menu.module.css';
 export function Menu() {
 	const {
 		allMoves,
-		currentMove,
-		setCurrentMove,
-		setViewMove,
 		sendMessage,
 		displaySettings,
-		hoveredMove,
-		setHoveredMove,
-		playContinuationFromCurrent,
-		settings,
-		setSettings,
 		connected,
 	} = useBoardStateContext();
 	const [pgnBlockCollapsed, setPGNBlockCollapsed] = useState(false);
 	const [userPGN, setUserPGN] = useState<string | null>(null);
 
 	const pgn = userPGN != null ? userPGN : movesToPGN(allMoves);
-
-	const currentMoveContinuation = allMoves[currentMove]?.continuation;
-	const latestContinuation = allMoves[allMoves.length - 1]?.continuation;
-	const displayedContinuation = useMemo(() => currentMoveContinuation ?? latestContinuation ?? [], [
-		currentMoveContinuation,
-		latestContinuation,
-	]);
-	const continuationAnchor = useMemo(() => currentMoveContinuation ? currentMove : allMoves.length - 1, [
-		currentMoveContinuation,
-		currentMove,
-		allMoves.length,
-	]);
-
-	const handleContinuationClick = (continuationIndex: number) => {
-		if (continuationIndex < 1) {
-			return;
-		}
-		const source = currentMoveContinuation ?? latestContinuation;
-		if (!source) {
-			return;
-		}
-		playContinuationFromCurrent(source, continuationIndex);
-	};
 
 	const handleNewGame = (event: React.MouseEvent<HTMLButtonElement>) => {
 		sendMessage(new Message(MessageType.NewGame, null));
@@ -68,65 +37,6 @@ export function Menu() {
 		setPGNBlockCollapsed(true);
 		event.stopPropagation();
 	};
-
-	const handleSetCurrentMove = useCallback((moveIndex: number) => {
-		setCurrentMove(moveIndex);
-		sendMessage(new Message(MessageType.SetCurrentMove, moveIndex));
-	}, [setCurrentMove, sendMessage]);
-
-	const handleSetCurrentMoveFromClick = (moveIndex: number) => {
-		if (settings.humanPlayers.length !== PlayerColors.length) {
-			const newSettings = {
-				...settings,
-				humanPlayers: PlayerColors.map((_, i) => i),
-			};
-
-			sendMessage(new Message(MessageType.SetSettings, { ...newSettings, evalLimit: newSettings.evalLimit * 1000 }));
-			setSettings(newSettings);
-		}
-		handleSetCurrentMove(moveIndex);
-	};
-
-	useEffect(() => {
-		const handler = (e: KeyboardEvent) => {
-			if (e.key === 'ArrowUp' && currentMove > 0) {
-				handleSetCurrentMove(currentMove - 1);
-			} else if (e.key === 'ArrowDown' && currentMove < allMoves.length - 1) {
-				handleSetCurrentMove(currentMove + 1);
-			} else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-				if (displayedContinuation.length === 0) {
-					return;
-				}
-				const cursorIdx = hoveredMove ? displayedContinuation.indexOf(hoveredMove.move) : -1;
-				let nextIdx: number;
-				if (e.key === 'ArrowRight') {
-					nextIdx = cursorIdx + 1;
-					if (nextIdx >= displayedContinuation.length) {
-						return;
-					}
-				} else {
-					nextIdx = cursorIdx === -1 ? displayedContinuation.length - 1 : cursorIdx - 1;
-					if (nextIdx < 0) {
-						return;
-					}
-				}
-				setHoveredMove({
-					move: displayedContinuation[nextIdx],
-					color: PlayerColors[(nextIdx + continuationAnchor) % PlayerColors.length],
-				});
-			}
-		};
-		window.addEventListener('keydown', handler);
-		return () => window.removeEventListener('keydown', handler);
-	}, [
-		currentMove,
-		allMoves,
-		displayedContinuation,
-		continuationAnchor,
-		hoveredMove,
-		setHoveredMove,
-		handleSetCurrentMove,
-	]);
 
 	return (
 		<div className={styles.menuContainer}>
@@ -162,28 +72,11 @@ export function Menu() {
 					<DisplaySettings />
 				</CollapsibleBlock>
 				<CollapsibleBlock header='Moves' collapsed={false}>
-					{allMoves.length > 0 && (
-						<MoveTable
-							moves={allMoves}
-							currentMove={currentMove}
-							moveNotation={displaySettings.moveNotation}
-							handleSetCurrentMove={handleSetCurrentMoveFromClick}
-							handleSetViewMove={setViewMove}
-						/>
-					)}
+					<MoveTable mode='moves' />
 				</CollapsibleBlock>
 				{displaySettings.showContinuation && (
 					<CollapsibleBlock header='Continuation' collapsed={false}>
-						{displayedContinuation.length > 0 && (
-							<MoveTable
-								moves={displayedContinuation}
-								currentMove={-1}
-								moveNotation={displaySettings.moveNotation}
-								handleSetCurrentMove={handleContinuationClick}
-								startOffset={continuationAnchor}
-								overrideHoverMode='highlight+'
-							/>
-						)}
+						<MoveTable mode='continuation' />
 					</CollapsibleBlock>
 				)}
 			</div>

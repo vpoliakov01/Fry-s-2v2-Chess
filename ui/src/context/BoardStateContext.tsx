@@ -6,14 +6,17 @@ import { useDisplaySettings } from '../hooks/useDisplaySettings';
 import { useGameSettings } from '../hooks/useGameSettings';
 import { GameStateManager } from '../utils';
 
-type HoveredMove = { move: Move, color: Color };
+type HighlightedMove = { move: Move, color: Color };
 
 type BoardStateContextType =
 	& Omit<ReturnType<typeof useBoardState>, 'state'>
 	& ReturnType<typeof useArrowDrawing>
 	& ReturnType<typeof useDisplaySettings>
 	& ReturnType<typeof useGameSettings>
-	& { hoveredMove: HoveredMove | null, setHoveredMove: React.Dispatch<React.SetStateAction<HoveredMove | null>> };
+	& {
+		highlightedMove: HighlightedMove | null,
+		setHighlightedMove: React.Dispatch<React.SetStateAction<HighlightedMove | null>>,
+	};
 
 const BoardStateContext = createContext<BoardStateContextType | null>(null);
 
@@ -30,7 +33,7 @@ export const BoardStateProvider = ({ children }: { children: ReactNode }) => {
 	const arrowDrawing = useArrowDrawing(state.activePlayer);
 	const displaySettings = useDisplaySettings();
 	const gameSettings = useGameSettings(boardState.sendMessage);
-	const [hoveredMove, setHoveredMove] = useState<HoveredMove | null>(null);
+	const [highlightedMove, setHighlightedMove] = useState<HighlightedMove | null>(null);
 
 	const { drawnArrows } = arrowDrawing;
 	useEffect(() => {
@@ -47,7 +50,14 @@ export const BoardStateProvider = ({ children }: { children: ReactNode }) => {
 
 	return (
 		<BoardStateContext.Provider
-			value={{ ...boardState, ...arrowDrawing, ...displaySettings, ...gameSettings, hoveredMove, setHoveredMove }}
+			value={{
+				...boardState,
+				...arrowDrawing,
+				...displaySettings,
+				...gameSettings,
+				highlightedMove: highlightedMove,
+				setHighlightedMove,
+			}}
 		>
 			{children}
 		</BoardStateContext.Provider>

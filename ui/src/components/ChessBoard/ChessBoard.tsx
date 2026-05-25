@@ -18,7 +18,7 @@ export function ChessBoard() {
 		movePiece,
 		setSelectedSquare,
 		displaySettings,
-		hoveredMove,
+		highlightedMove,
 		handleSquareRightMouseDown,
 		handleSquareMouseEnter,
 		handleSquareRightMouseUp,
@@ -46,9 +46,9 @@ export function ChessBoard() {
 		);
 	}
 
-	if (hoveredMove) {
-		higlightedSquares.push({ ...hoveredMove.move.from, color: hoveredMove.color });
-		higlightedSquares.push({ ...hoveredMove.move.to, color: hoveredMove.color });
+	if (highlightedMove) {
+		higlightedSquares.push({ ...highlightedMove.move.from, color: highlightedMove.color });
+		higlightedSquares.push({ ...highlightedMove.move.to, color: highlightedMove.color });
 	}
 
 	const handleSquareClick = (row: number, col: number) => {

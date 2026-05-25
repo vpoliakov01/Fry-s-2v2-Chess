@@ -1,88 +1,184 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPieceImage, Move, MoveInfo, pieceName, PlayerColors, positionToPGN } from '../../common';
 import { useBoardStateContext } from '../../context/BoardStateContext';
-import { MoveNotation, OnMoveHover } from '../../utils';
+import { Message, MessageType, playSound, Sound } from '../../utils';
 import styles from './MoveTable.module.css';
 
 interface MoveTableProps {
-	moves: Move[];
-	currentMove: number;
-	moveNotation: MoveNotation;
-	handleSetCurrentMove: (moveIndex: number) => void;
-	handleSetViewMove?: (moveIndex: number) => void;
-	startOffset?: number;
-	overrideHoverMode?: OnMoveHover;
+	mode: 'moves' | 'continuation';
 }
 
-export function MoveTable(
-	{ moves, currentMove, moveNotation, handleSetCurrentMove, handleSetViewMove, startOffset = 0, overrideHoverMode }:
-		MoveTableProps,
-) {
-	const { setHoveredMove, hoveredMove } = useBoardStateContext();
-	const [selectedMove, setSelectedMove] = useState<number | null>(null);
+export function MoveTable({ mode }: MoveTableProps) {
+	const {
+		allMoves,
+		currentMove,
+		settings,
+		setSettings,
+		displaySettings,
+		highlightedMove,
+		setHighlightedMove,
+		setViewMove,
+		sendMessage,
+		playContinuationFromCurrent,
+	} = useBoardStateContext();
 
-	const hoverMode = overrideHoverMode ?? 'set board';
-	const onHoverSetBoard = handleSetViewMove ?? handleSetCurrentMove;
+	const movesMode = mode === 'moves';
 
-	const handleMouseEnter = (moveIndex: number) => {
-		let mode = selectedMove ? 'selectedMove' : hoverMode;
+	const continuation = allMoves[currentMove]?.continuation;
+	const latestContinuation = allMoves[allMoves.length - 1]?.continuation;
 
-		switch (mode) {
-			case 'arrow':
-			case 'highlight':
-			case 'highlight+':
-			case 'selectedMove':
-				setHoveredMove({ move: moves[moveIndex], color: PlayerColors[(moveIndex + startOffset) % 4] });
-				break;
-			case 'set board':
-				onHoverSetBoard(moveIndex);
-				break;
-			case 'none':
-				setHoveredMove(null);
-				break;
+	const moves: Move[] = useMemo(() => movesMode ? allMoves : (continuation ?? latestContinuation ?? []), [
+		movesMode,
+		allMoves,
+		continuation,
+		latestContinuation,
+	]);
+	const startOffset = movesMode ? 0 : (continuation ? currentMove : allMoves.length - 1);
+
+	const [selectedMove, setSelectedMove] = useState<number>(movesMode ? currentMove : -1);
+	const [disableHover, setDisableHover] = useState<boolean>(false);
+
+	const selectMove = useCallback((index: number) => {
+		if (index === selectedMove) {
+			return;
 		}
+
+		// Stop the engine, set all players to human.
+		if (settings.humanPlayers.length !== PlayerColors.length) {
+			const newSettings = { ...settings, humanPlayers: PlayerColors.map((_, i) => i) };
+			sendMessage(new Message(MessageType.SetSettings, { ...newSettings, evalLimit: newSettings.evalLimit * 1000 }));
+			setSettings(newSettings);
+		}
+
+		setSelectedMove(index);
+		setViewMove(index);
+		sendMessage(new Message(MessageType.SetCurrentMove, index));
+	}, [selectedMove, settings, setSettings, setViewMove, sendMessage]);
+
+	const playContinuation = useCallback((index: number) => {
+		if (index < 1) {
+			return;
+		}
+
+		const source = continuation ?? latestContinuation;
+		if (!source) {
+			return;
+		}
+
+		playContinuationFromCurrent(source, index);
+	}, [continuation, latestContinuation, playContinuationFromCurrent]);
+
+	const handleClick = (index: number) => {
+		if (movesMode) {
+			setDisableHover(true);
+			selectMove(index);
+		} else {
+			playContinuation(index);
+		}
+
+		playSound(Sound.Move);
 	};
 
-	const handleMouseLeave = (moveIndex: number) => {
-		switch (hoverMode) {
-			case 'arrow':
-			case 'highlight':
-			case 'highlight+':
-				setHoveredMove(null);
-				break;
-			case 'set board':
-				// Handled by handleTableMouseLeave.
-				break;
-			case 'none':
-				break;
+	const handleMouseEnter = (index: number) => {
+		if (movesMode) {
+			if (!disableHover) {
+				setViewMove(index);
+			}
+		}
+
+		setHighlightedMove({
+			move: moves[index],
+			color: PlayerColors[(index + startOffset) % 4],
+		});
+	};
+
+	const handleMouseLeave = () => {
+		if (movesMode) {
+			return;
+		} else {
+			setHighlightedMove(null);
 		}
 	};
 
 	const handleTableMouseLeave = () => {
-		if (hoverMode !== 'set board') {
-			return;
-		}
-
-		if (selectedMove !== null) {
-			setHoveredMove(null);
-			return;
-		}
-
-		const target = moves.length - 1;
-		if (target !== currentMove) {
-			onHoverSetBoard(target);
+		if (movesMode) {
+			setDisableHover(false);
+			selectMove(selectedMove ?? moves.length - 1);
+			setHighlightedMove(null);
 		}
 	};
 
-	const handleClick = (moveIndex: number) => {
-		setSelectedMove(moveIndex);
-		handleSetCurrentMove(moveIndex);
-		onHoverSetBoard(moveIndex);
-	};
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (movesMode) {
+				if (!['ArrowUp', 'ArrowDown'].includes(e.key)) {
+					return;
+				}
+
+				let newMove: number = -1;
+
+				switch (e.key) {
+					case 'ArrowUp':
+						newMove = selectedMove - 1;
+						break;
+					case 'ArrowDown':
+						newMove = selectedMove + 1;
+						break;
+				}
+
+				if (newMove >= 0 && newMove < moves.length) {
+					setDisableHover(false);
+					selectMove(newMove);
+
+					playSound(Sound.Move);
+				}
+			} else {
+				if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+					return;
+				}
+
+				if (moves.length === 0) {
+					return;
+				}
+
+				const currentMove = highlightedMove ? moves.indexOf(highlightedMove.move) : -1;
+				let nextMove: number = -1;
+
+				switch (e.key) {
+					case 'ArrowRight':
+						nextMove = currentMove + 1;
+						if (nextMove >= moves.length) {
+							return;
+						}
+						break;
+					case 'ArrowLeft':
+						nextMove = currentMove === -1 ? moves.length - 1 : currentMove - 1;
+						if (nextMove < 0) {
+							return;
+						}
+						break;
+				}
+
+				if (nextMove >= 0 && nextMove < moves.length) {
+					setHighlightedMove({
+						move: moves[nextMove],
+						color: PlayerColors[(nextMove + startOffset) % 4],
+					});
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handler);
+		return () => window.removeEventListener('keydown', handler);
+	}, [movesMode, selectedMove, moves, selectMove, highlightedMove, setHighlightedMove, startOffset]);
+
+	if (moves.length === 0) {
+		return null;
+	}
 
 	const formatMoveDisplay = (move: Move): React.ReactNode => {
 		if (move instanceof MoveInfo && move.piece) {
-			switch (moveNotation) {
+			switch (displaySettings.moveNotation) {
 				case 'PGN':
 					return <span className={styles.moveText}>{move.toPGN()}</span>;
 				case 'SAN':
@@ -98,7 +194,7 @@ export function MoveTable(
 							<>
 								<img className={styles.pieceIcon} alt={`${pieceName[piece.type]}`} src={getPieceImage(piece)} />
 								<span className={styles.captureX}>x</span>
-								{moveNotation === 'FAN+'
+								{displaySettings.moveNotation === 'FAN+'
 									? (
 										<img
 											className={styles.capturedPieceIcon}
@@ -134,15 +230,16 @@ export function MoveTable(
 				return <td key={`${i}-${j}-empty`} className={styles.inactiveCell}></td>;
 			}
 
-			const isHovered = hoveredMove?.move === moves[moveIndex];
+			const isHovered = highlightedMove?.move === moves[moveIndex];
 			return (
 				<td
-					className={[styles.moveCell, moveIndex === currentMove || isHovered ? styles.currentMove : ''].filter(Boolean)
-						.join(' ')}
+					className={[styles.moveCell, moveIndex === selectedMove || isHovered ? styles.currentMove : ''].filter(
+						Boolean,
+					).join(' ')}
 					key={`${i}-${moves[moveIndex].toPGN()}`}
 					onClick={() => handleClick(moveIndex)}
 					onMouseEnter={() => handleMouseEnter(moveIndex)}
-					onMouseLeave={() => handleMouseLeave(moveIndex)}
+					onMouseLeave={handleMouseLeave}
 				>
 					{formatMoveDisplay(moves[moveIndex])}
 				</td>
