@@ -7,32 +7,65 @@ import (
 )
 
 const (
-	TTSizeBits   = 22
-	TTSize       = 1 << TTSizeBits
-	TTIndexMask  = TTSize - 1
-	TTShardCount = 256
-	TTShardMask  = TTShardCount - 1
+	TTSizeBits       = 26
+	TTSize           = 1 << TTSizeBits
+	TTIndexMask      = TTSize - 1
+	TTLockShardCount = 256
+	TTLockShardMask  = TTLockShardCount - 1
 
 	BoundExact uint8 = 0
 	BoundLower uint8 = 1 // fail-high: score is a lower bound
 	BoundUpper uint8 = 2 // fail-low: score is an upper bound
+
+	StoringDepthThreshold = 24 // Don't store positions with moveNumber > this value.
 )
 
 // entry is one slot in the transposition table.
-// fromIdx and toIdx pack a Square into a byte (high nibble Rank, low nibble File).
+// fromIndex and toIndex pack a Square into a byte (high nibble Rank, low nibble File).
 type entry struct {
-	key     uint64
-	score   float32
-	depth   int8 // remaining depth searched below this node when stored
-	fromIdx uint8
-	toIdx   uint8
-	bound   uint8
+	key       uint64
+	score     float32
+	depth     int8 // remaining depth searched below this node when stored
+	fromIndex uint8
+	toIndex   uint8
+	bound     uint8
 }
 
 // TranspositionTable is a transposition table shared across workers, sharded by mutex to keep contention low.
 type TranspositionTable struct {
 	entries []entry
-	shards  [TTShardCount]sync.Mutex
+	locks   [TTLockShardCount]sync.Mutex
+}
+
+// Cache is a wrapper around the transposition table that allows for storing based on depth.
+type Cache struct {
+	Stored    *TranspositionTable
+	NotStored *TranspositionTable
+}
+
+// NewCache creates a new cache.
+func NewCache() *Cache {
+	return &Cache{
+		Stored:    NewTranspositionTable(),
+		NotStored: NewTranspositionTable(),
+	}
+}
+
+// Get returns the entry for key; ok is false if the slot holds a different key.
+func (c *Cache) Get(key uint64) (cachedEntry entry, ok bool) {
+	if e, ok := c.Stored.Get(key); ok {
+		return e, true
+	}
+	return c.NotStored.Get(key)
+}
+
+// Set writes an entry using depth-preferred replacement.
+func (c *Cache) Set(key uint64, move game.Move, score float64, depth int8, bound uint8, moveNumber int) {
+	if moveNumber <= StoringDepthThreshold {
+		c.Stored.Set(key, move, score, depth, bound)
+	} else {
+		c.NotStored.Set(key, move, score, depth, bound)
+	}
 }
 
 // NewTranspositionTable allocates a fresh transposition table.
@@ -45,25 +78,25 @@ func NewTranspositionTable() *TranspositionTable {
 // Clear zeroes every entry. Intended for fresh-game resets so old positions
 // don't compete for slots with new ones.
 func (t *TranspositionTable) Clear() {
-	for i := range t.shards {
-		t.shards[i].Lock()
+	for i := range t.locks {
+		t.locks[i].Lock()
 	}
 
 	clear(t.entries)
 
-	for i := range t.shards {
-		t.shards[i].Unlock()
+	for i := range t.locks {
+		t.locks[i].Unlock()
 	}
 }
 
 // Get returns the entry for key; ok is false if the slot holds a different key.
 func (t *TranspositionTable) Get(key uint64) (cachedEntry entry, ok bool) {
-	idx := key & TTIndexMask
-	shard := &t.shards[idx&TTShardMask]
+	index := key & TTIndexMask
+	lock := &t.locks[index&TTLockShardMask]
 
-	shard.Lock()
-	e := t.entries[idx]
-	shard.Unlock()
+	lock.Lock()
+	e := t.entries[index]
+	lock.Unlock()
 
 	if e.key != key {
 		return entry{}, false
@@ -73,22 +106,22 @@ func (t *TranspositionTable) Get(key uint64) (cachedEntry entry, ok bool) {
 
 // Set writes an entry using depth-preferred replacement.
 func (t *TranspositionTable) Set(key uint64, move game.Move, score float64, depth int8, bound uint8) {
-	idx := key & TTIndexMask
-	shard := &t.shards[idx&TTShardMask]
+	index := key & TTIndexMask
+	lock := &t.locks[index&TTLockShardMask]
 
-	shard.Lock()
-	existing := &t.entries[idx]
+	lock.Lock()
+	existing := &t.entries[index]
 	if existing.key != key || existing.depth <= depth {
 		*existing = entry{
-			key:     key,
-			score:   float32(score),
-			depth:   depth,
-			fromIdx: packSquare(move.From),
-			toIdx:   packSquare(move.To),
-			bound:   bound,
+			key:       key,
+			score:     float32(score),
+			depth:     depth,
+			fromIndex: packSquare(move.From),
+			toIndex:   packSquare(move.To),
+			bound:     bound,
 		}
 	}
-	shard.Unlock()
+	lock.Unlock()
 }
 
 // boundOf classifies a search result given the original alpha and the (possibly tightened) beta.
@@ -128,5 +161,5 @@ func unpackSquare(b uint8) game.Square {
 
 // move returns the entry's move as a game.Move.
 func (e entry) move() game.Move {
-	return game.Move{From: unpackSquare(e.fromIdx), To: unpackSquare(e.toIdx)}
+	return game.Move{From: unpackSquare(e.fromIndex), To: unpackSquare(e.toIndex)}
 }

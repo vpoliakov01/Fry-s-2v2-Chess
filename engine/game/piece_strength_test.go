@@ -161,7 +161,7 @@ func (s *TestSuite) TestPieceStrengths() {
 				piece := NewPiece(0, tc.kind)
 				board.PlacePiece(piece, square)
 
-				v := piece.GetStrength(board, square, Player(0))
+				v, _ := GetPieceStrength(g, piece, square)
 
 				fmt.Printf("%.2f ", v)
 				sum += v

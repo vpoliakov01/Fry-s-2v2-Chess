@@ -47,6 +47,6 @@ func (ai *AI) initBuffers() {
 	}
 
 	for i := range ai.buffers { // Per each cpu.
-		ai.buffers[i].init(ai.Depth + 2)
+		ai.buffers[i].init(32)
 	}
 }

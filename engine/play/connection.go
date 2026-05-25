@@ -42,6 +42,6 @@ func NewConnection(c MessageWriter, cfg *Config) *Connection {
 		conn:   c,
 		cfg:    cfg,
 		gs:     game.SetupBoard(cfg.Load),
-		engine: ai.New(cfg.Depth, cfg.Spread, cfg.SpreadDrop, cfg.EvalLimit),
+		engine: ai.New(cfg.Depth, cfg.Spread, cfg.SpreadDrop, cfg.EvalLimit, ai.WithEnableStoredCache(true)),
 	}
 }

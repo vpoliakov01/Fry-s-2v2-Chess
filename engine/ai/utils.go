@@ -97,7 +97,7 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 	bestScore, bestContinuation := ai.searchRootMovesParallel(g, movesToSearch, mateValue+1)
 
 	if len(bestContinuation) > 0 && !ai.stopFlag.Load() {
-		ai.cache.Set(g.Hash, bestContinuation[0], bestScore, int8(depth-1), BoundExact)
+		ai.cache.Set(g.Hash, bestContinuation[0], bestScore, int8(depth-1), BoundExact, g.MoveNumber)
 	}
 
 	return bestContinuation, bestScore, nil

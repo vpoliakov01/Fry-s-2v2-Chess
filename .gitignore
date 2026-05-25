@@ -3,6 +3,7 @@ todo
 .vscode
 cmd/ai
 cmd/__debug*
+cmd/chess_cache.bin
 *.save
 saves
 

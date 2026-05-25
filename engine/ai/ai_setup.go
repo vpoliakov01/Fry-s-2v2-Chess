@@ -3,8 +3,13 @@ package ai
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
+	"os"
+	"os/signal"
 	"runtime"
+	"sync"
+	"syscall"
 
 	"github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
@@ -19,9 +24,13 @@ var (
 	DefaultSpread     = 8
 	DefaultSpreadDrop = 2
 	DefaultEvalLimit  = MaxEvalLimit
+
+	shutdownHookOnce sync.Once
 )
 
 const (
+	DefaultCachePath = "chess.cache"
+
 	mateValue     = 1000.0 // Score of a position whose active player has just been mated.
 	mateThreshold = 900.0  // Scores beyond this magnitude are treated as mate scores.
 )
@@ -42,6 +51,20 @@ func WithEnableDebug(enableDebug bool) func(*AI) {
 	}
 }
 
+// WithEnableDebugLogging enables debug logging.
+func WithEnableDebugLogging(enableDebugLogging bool) func(*AI) {
+	return func(ai *AI) {
+		ai.enableDebugLogging = enableDebugLogging
+	}
+}
+
+// WithEnableStoredCache enables storing the transposition table to disk.
+func WithEnableStoredCache(enableStoredCache bool) func(*AI) {
+	return func(ai *AI) {
+		ai.enableStoredCache = enableStoredCache
+	}
+}
+
 // Stop stops the engine and blocks until the running search has returned.
 func (ai *AI) Stop() {
 	ai.stopFlag.Store(true)
@@ -54,8 +77,49 @@ func (ai *AI) Stop() {
 // game or loading a position so unrelated old entries don't crowd new ones.
 func (ai *AI) ResetCache() {
 	if ai.cache != nil {
-		ai.cache.Clear()
+		ai.cache.Stored.Clear()
+		ai.cache.NotStored.Clear()
 	}
+}
+
+// StoreCache persists the transposition table to DefaultCachePath.
+func (ai *AI) StoreCache() error {
+	if ai.cache == nil || !ai.enableStoredCache {
+		return nil
+	}
+	return ai.cache.Stored.Store(DefaultCachePath)
+}
+
+// LoadCache restores the transposition table from DefaultCachePath. Missing file is not an error.
+func (ai *AI) LoadCache() error {
+	if ai.cache == nil || !ai.enableStoredCache {
+		ai.cache = NewCache()
+		return nil
+	}
+	err := ai.cache.Stored.Load(DefaultCachePath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
+
+// installShutdownHook stores ai.cache on SIGINT/SIGTERM and exits.
+func (ai *AI) installShutdownHook() {
+	shutdownHookOnce.Do(func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT)
+
+		go func() {
+			sig := <-c
+			ai.Stop()
+			if err := ai.StoreCache(); err != nil {
+				log.Printf("Failed to store transposition table: %v", err)
+			}
+
+			signal.Reset(sig.(syscall.Signal))
+			syscall.Kill(syscall.Getpid(), sig.(syscall.Signal))
+		}()
+	})
 }
 
 // loadSharedAlpha returns the current shared root-level alpha as float64.

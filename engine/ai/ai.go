@@ -16,8 +16,9 @@ type AI struct {
 	EvalsCount int // Populated after GetBestMove returns.
 	EvalLimit  int
 
-	buffers []buffer // One buffer per CPU.
-	cache   *TranspositionTable
+	buffers           []buffer // One buffer per CPU.
+	cache             *Cache
+	enableStoredCache bool
 
 	bfsDepth int // Depth of the running BFS.
 
@@ -50,6 +51,11 @@ func New(depth, spread, spreadDrop, evalLimit int, options ...func(*AI)) *AI {
 		ai.InitDebug()
 	}
 
+	if err := ai.LoadCache(); err != nil {
+		fmt.Printf("Failed to load transposition table: %v\n", err)
+	}
+	ai.installShutdownHook()
+
 	return ai
 }
 
@@ -57,6 +63,7 @@ func New(depth, spread, spreadDrop, evalLimit int, options ...func(*AI)) *AI {
 // The first element of the continuation is the best move itself.
 func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64, err error) {
 	ai.hasStopped.Store(false)
+	defer ai.StoreCache()
 	defer ai.hasStopped.Store(true)
 
 	ai.stopFlag.Store(false)
@@ -68,7 +75,7 @@ func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64
 
 	ai.initBuffers()
 	if ai.cache == nil {
-		ai.cache = NewTranspositionTable()
+		ai.cache = NewCache()
 	}
 	g.ComputeHash()
 
@@ -179,7 +186,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 	}
 
 	if !ai.stopFlag.Load() {
-		ai.cache.Set(g.Hash, bestMove, bestScore, remainingDepth, boundOf(bestScore, alphaOrig, beta))
+		ai.cache.Set(g.Hash, bestMove, bestScore, remainingDepth, boundOf(bestScore, alphaOrig, beta), g.MoveNumber)
 	}
 
 	if ai.enableDebug {
