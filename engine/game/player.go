@@ -24,6 +24,11 @@ func (p Player) Team() Team {
 	return Team(1 - 2*t)
 }
 
+// Teammates returns the two players on the same team.
+func (p Player) Teammates() []Player {
+	return Opponents[(p+1)%2]
+}
+
 // Opponents returns the two players on the opposite team.
 func (p Player) Opponents() []Player {
 	return Opponents[p%2]

@@ -73,8 +73,8 @@ func (s *TestSuite) TestBonuses() {
 				if isCorner(rank, file) {
 					fmt.Printf("     ")
 				} else {
-					fmt.Printf("%.2f ", tc.f(Square{rank, file})+bonus)
-					sum += tc.f(Square{rank, file})
+					fmt.Printf("%.2f ", tc.f(Square{Rank: rank, File: file})+bonus)
+					sum += tc.f(Square{Rank: rank, File: file})
 				}
 			}
 			fmt.Println()
@@ -145,7 +145,7 @@ func (s *TestSuite) TestPieceStrengths() {
 
 		for rank := 0; rank < BoardSize; rank++ {
 			for file := 0; file < BoardSize; file++ {
-				square := Square{rank, file}
+				square := Square{Rank: rank, File: file}
 				if !square.IsValid() {
 					fmt.Printf("     ")
 					continue
@@ -245,7 +245,7 @@ func (s *TestSuite) TestPrecomputedSpeed() {
 	var precomputed [BoardSize][BoardSize]float64
 	for rank := 0; rank < BoardSize; rank++ {
 		for file := 0; file < BoardSize; file++ {
-			precomputed[rank][file] = GetBalanceBonus(Square{rank, file})
+			precomputed[rank][file] = GetBalanceBonus(Square{Rank: rank, File: file})
 		}
 	}
 

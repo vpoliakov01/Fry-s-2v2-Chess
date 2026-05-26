@@ -90,7 +90,7 @@ func (s *TestSuite) TestPosition() {
 		rank := pieces[i][1]
 		file := pieces[i][2]
 
-		g.Board.PlacePiece(piece, game.Square{rank, file})
+		g.Board.PlacePiece(piece, game.Square{Rank: rank, File: file})
 	}
 
 	engine := New(2, DefaultSpread, DefaultSpreadDrop, 0)

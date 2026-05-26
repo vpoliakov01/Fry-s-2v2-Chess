@@ -59,6 +59,13 @@ func WithEnableDebugLogging(enableDebugLogging bool) func(*AI) {
 	}
 }
 
+// WithEnableStoredCache enables storing the transposition table to disk.
+func WithEnableStoredCache(enableStoredCache bool) func(*AI) {
+	return func(ai *AI) {
+		ai.enableStoredCache = enableStoredCache
+	}
+}
+
 // Stop stops the engine and blocks until the running search has returned.
 func (ai *AI) Stop() {
 	ai.stopFlag.Store(true)

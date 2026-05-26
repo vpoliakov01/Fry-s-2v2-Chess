@@ -7,6 +7,15 @@ import (
 	. "github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
 
+var (
+	kingSafeBoxVectors = [4][3][2]int{
+		{{-1, 1}, {0, 2}, {1, 1}},
+		{{1, 1}, {2, 0}, {1, -1}},
+		{{-1, -1}, {0, -2}, {1, -1}},
+		{{-1, -1}, {-2, 0}, {-1, 1}},
+	}
+)
+
 // EvaluateCurrent returns the difference between strengths of the team making the move and the opponent team.
 // Used to seed the absolute eval at the search root; per-move updates use EvaluateMove for an incremental delta.
 func (ai *AI) EvaluateCurrent(g *Game, buffer *buffer) float64 {
@@ -98,6 +107,33 @@ func GetKingThreatStrength(g *Game, piece Piece, square Square) (positionEval, m
 	}
 
 	return 0.0, 0.0
+}
+
+// GetKingSafetyScore returns a score based on how safe the active team's kings are.
+func GetKingSafetyScore(g *Game, piece Piece, eval float64) (positionEval, moveEval float64) {
+	for _, player := range g.ActivePlayer.Teammates() {
+		kingSquare := g.Board.Kings[player]
+
+		for _, vector := range kingSafeBoxVectors[player] {
+			square := kingSquare.Add(vector[0], vector[1])
+			if !square.IsValid() || g.Board.IsEmpty(square) {
+				continue
+			}
+
+			piece := g.Board.GetPiece(square)
+			if piece.Player().IsTeamMate(player) {
+				positionEval += 2
+			} else {
+				positionEval -= 2
+			}
+		}
+	}
+
+	if eval < -mateValue+100 && piece.Kind() == KindKing {
+		moveEval += 5
+	}
+
+	return positionEval, moveEval
 }
 
 // GetPositionalStrength returns the piece's positional strength at the given square.

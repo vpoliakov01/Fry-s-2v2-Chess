@@ -132,9 +132,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 	remainingDepth := int8(ai.bfsDepth - depth)
 	alphaOrig := alpha
 
-	// Check the transposition table for a previously computed result.
-	var cachedMove game.Move
-
+	cachedMove := game.Move{}
 	cached, ok := ai.cache.Get(g.Hash)
 	if ok {
 		cachedMove = cached.move()
