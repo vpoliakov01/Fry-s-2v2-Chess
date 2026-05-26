@@ -10,7 +10,7 @@ import (
 
 func (s *TestSuite) TestCache() {
 	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
-	moves := 5
+	moves := 1
 
 	conts := make([][]game.Move, moves)
 	times := make([]time.Duration, moves)

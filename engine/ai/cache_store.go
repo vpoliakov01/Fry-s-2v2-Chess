@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"os"
 	"time"
 )
@@ -16,12 +15,12 @@ const (
 )
 
 // On-disk format for the transposition table. Only non-empty entries are written.
-// Header (32 bytes):  headerType(4) | version(1) | sizeBits(1) | count(4) | reserved(22)
-// Entry (16 bytes):   key(uint64 LE) | score(float32 bits LE) | depth(int8) | fromIndex | toIndex | bound
+// Header (32 bits):  headerType(4) | version(1) | sizeBits(1) | count(4) | reserved(22)
+// Entry (80 bits):   key(32) | score(16) | depth(8) | from(8) | to(8) | bound(8)
 const (
 	cacheHeaderType = "TTBL"
 	cacheVersion    = uint8(1)
-	cacheEntryBytes = 16
+	cacheEntryBytes = 10
 )
 
 // Store writes the non-empty entries of t to path.
@@ -70,12 +69,12 @@ func (t *TranspositionTable) Store(path string) error {
 			continue
 		}
 
-		binary.LittleEndian.PutUint64(buf[0:8], e.key)
-		binary.LittleEndian.PutUint32(buf[8:12], math.Float32bits(e.score))
-		buf[12] = uint8(e.depth)
-		buf[13] = e.fromIndex
-		buf[14] = e.toIndex
-		buf[15] = e.bound
+		binary.LittleEndian.PutUint32(buf[0:4], e.key)
+		binary.LittleEndian.PutUint16(buf[4:6], uint16(e.score))
+		buf[6] = uint8(e.depth)
+		buf[7] = e.from
+		buf[8] = e.to
+		buf[9] = e.bound
 
 		if _, err := w.Write(buf[:]); err != nil {
 			return err
@@ -141,16 +140,16 @@ func (t *TranspositionTable) Load(path string) error {
 			return err
 		}
 
-		key := binary.LittleEndian.Uint64(buf[0:8])
+		key := binary.LittleEndian.Uint32(buf[0:4])
 		index := key & TTIndexMask
 
 		t.entries[index] = entry{
-			key:       key,
-			score:     math.Float32frombits(binary.LittleEndian.Uint32(buf[8:12])),
-			depth:     int8(buf[12]),
-			fromIndex: buf[13],
-			toIndex:   buf[14],
-			bound:     buf[15],
+			key:   key,
+			score: int16(binary.LittleEndian.Uint16(buf[4:6])),
+			depth: int8(buf[6]),
+			from:  buf[7],
+			to:    buf[8],
+			bound: buf[9],
 		}
 	}
 

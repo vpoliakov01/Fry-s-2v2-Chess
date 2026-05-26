@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	TTSizeBits       = 26
+	TTSizeBits       = 28
 	TTSize           = 1 << TTSizeBits
 	TTIndexMask      = TTSize - 1
 	TTLockShardCount = 256
@@ -23,12 +23,12 @@ const (
 // entry is one slot in the transposition table.
 // fromIndex and toIndex pack a Square into a byte (high nibble Rank, low nibble File).
 type entry struct {
-	key       uint64
-	score     float32
-	depth     int8 // remaining depth searched below this node when stored
-	fromIndex uint8
-	toIndex   uint8
-	bound     uint8
+	key   uint32
+	score int16
+	depth int8 // remaining depth searched below this node when stored
+	from  uint8
+	to    uint8
+	bound uint8
 }
 
 // TranspositionTable is a transposition table shared across workers, sharded by mutex to keep contention low.
@@ -53,7 +53,8 @@ func NewCache() *Cache {
 
 // Get returns the entry for key; ok is false if the slot holds a different key.
 func (c *Cache) Get(key uint64) (cachedEntry entry, ok bool) {
-	if e, ok := c.Stored.Get(key); ok {
+	e, ok := c.Stored.Get(key)
+	if ok {
 		return e, true
 	}
 	return c.NotStored.Get(key)
@@ -98,7 +99,9 @@ func (t *TranspositionTable) Get(key uint64) (cachedEntry entry, ok bool) {
 	e := t.entries[index]
 	lock.Unlock()
 
-	if e.key != key {
+	key32 := uint32(key >> 32)
+
+	if e.key != key32 {
 		return entry{}, false
 	}
 	return e, true
@@ -109,16 +112,19 @@ func (t *TranspositionTable) Set(key uint64, move game.Move, score float64, dept
 	index := key & TTIndexMask
 	lock := &t.locks[index&TTLockShardMask]
 
+	key32 := uint32(key >> 32)
+	score16 := int16(score * 100) // Store score as centipawns.
+
 	lock.Lock()
 	existing := &t.entries[index]
-	if existing.key != key || existing.depth <= depth {
+	if existing.key != key32 || existing.depth <= depth {
 		*existing = entry{
-			key:       key,
-			score:     float32(score),
-			depth:     depth,
-			fromIndex: packSquare(move.From),
-			toIndex:   packSquare(move.To),
-			bound:     bound,
+			key:   key32,
+			score: score16,
+			depth: depth,
+			from:  packSquare(move.From),
+			to:    packSquare(move.To),
+			bound: bound,
 		}
 	}
 	lock.Unlock()
@@ -137,14 +143,14 @@ func boundOf(bestScore, alphaOrig, beta float64) uint8 {
 }
 
 // canCutoff reports whether a stored entry's bound permits its score to be used as a cutoff.
-func canCutoff(score float32, bound uint8, alpha, beta float64) bool {
+func canCutoff(score16 int16, bound uint8, alpha, beta float64) bool {
 	switch bound {
 	case BoundExact:
 		return true
 	case BoundLower:
-		return float64(score) >= beta
+		return float64(score16) >= beta*100
 	case BoundUpper:
-		return float64(score) <= alpha
+		return float64(score16) <= alpha*100
 	}
 	return false
 }
@@ -161,5 +167,5 @@ func unpackSquare(b uint8) game.Square {
 
 // move returns the entry's move as a game.Move.
 func (e entry) move() game.Move {
-	return game.Move{From: unpackSquare(e.fromIndex), To: unpackSquare(e.toIndex)}
+	return game.Move{From: unpackSquare(e.from), To: unpackSquare(e.to)}
 }

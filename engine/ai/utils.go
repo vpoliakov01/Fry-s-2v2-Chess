@@ -61,7 +61,7 @@ func (ai *AI) searchRootMovesParallel(g *game.Game, candidates []moveScore, beta
 	}
 	wg.Wait()
 
-	bestScore := -math.MaxFloat64
+	bestScore := -mateValue
 	var bestContinuation []game.Move
 
 	for _, result := range results {

@@ -129,7 +129,7 @@ func GetKingSafetyScore(g *Game, piece Piece, eval float64) (positionEval, moveE
 		}
 	}
 
-	if eval < -mateValue+100 && piece.Kind() == KindKing {
+	if eval < -mateThreshold && piece.Kind() == KindKing {
 		moveEval += 5
 	}
 

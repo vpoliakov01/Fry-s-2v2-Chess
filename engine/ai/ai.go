@@ -65,8 +65,10 @@ func New(depth, spread, spreadDrop, evalLimit int, options ...func(*AI)) *AI {
 // The first element of the continuation is the best move itself.
 func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64, err error) {
 	ai.hasStopped.Store(false)
-	defer ai.StoreCache()
-	defer ai.hasStopped.Store(true)
+	defer func() {
+		go ai.StoreCache()
+		ai.hasStopped.Store(true)
+	}()
 
 	ai.stopFlag.Store(false)
 	ai.EvalsCount = 0

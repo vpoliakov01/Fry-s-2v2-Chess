@@ -31,8 +31,8 @@ var (
 const (
 	DefaultCachePath = "chess.cache"
 
-	mateValue     = 1000.0 // Score of a position whose active player has just been mated.
-	mateThreshold = 900.0  // Scores beyond this magnitude are treated as mate scores.
+	mateValue     = 300.0 // Score of a position whose active player has just been mated.
+	mateThreshold = 200.0 // Scores beyond this magnitude are treated as mate scores.
 )
 
 type moveScore struct {
@@ -93,10 +93,14 @@ func (ai *AI) StoreCache() error {
 
 // LoadCache restores the transposition table from DefaultCachePath. Missing file is not an error.
 func (ai *AI) LoadCache() error {
-	if ai.cache == nil || !ai.enableStoredCache {
+	if ai.cache == nil {
 		ai.cache = NewCache()
+	}
+
+	if !ai.enableStoredCache {
 		return nil
 	}
+
 	err := ai.cache.Stored.Load(DefaultCachePath)
 	if os.IsNotExist(err) {
 		return nil
