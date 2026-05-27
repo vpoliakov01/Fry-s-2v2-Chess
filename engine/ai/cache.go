@@ -143,14 +143,14 @@ func boundOf(bestScore, alphaOrig, beta float64) uint8 {
 }
 
 // canCutoff reports whether a stored entry's bound permits its score to be used as a cutoff.
-func canCutoff(score16 int16, bound uint8, alpha, beta float64) bool {
+func canCutoff(score, alpha, beta float64, bound uint8) bool {
 	switch bound {
 	case BoundExact:
 		return true
 	case BoundLower:
-		return float64(score16) >= beta*100
+		return score >= beta
 	case BoundUpper:
-		return float64(score16) <= alpha*100
+		return score <= alpha
 	}
 	return false
 }
@@ -168,4 +168,9 @@ func unpackSquare(b uint8) game.Square {
 // move returns the entry's move as a game.Move.
 func (e entry) move() game.Move {
 	return game.Move{From: unpackSquare(e.from), To: unpackSquare(e.to)}
+}
+
+// eval returns the entry's score as a float64.
+func (e entry) eval() float64 {
+	return float64(e.score) / 100
 }

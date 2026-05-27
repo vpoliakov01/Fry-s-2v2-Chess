@@ -25,7 +25,9 @@ func NewBoard() *Board {
 
 	for rank := 0; rank < BoardSize; rank++ {
 		for file := 0; file < BoardSize; file++ {
-			if IsSquareValid(rank, file) {
+			square := Square{Rank: rank, File: file}
+
+			if square.IsValid() {
 				b.Grid[rank][file] = Piece(EmptySquare)
 
 				for player := 0; player < 4; player++ {
@@ -91,7 +93,7 @@ func (b *Board) SetStartingPosition() {
 				player := Player(i)
 				rank := playerPositions[i][0]
 				file := playerPositions[i][1]
-				b.PlacePiece(NewPiece(player, kind), Square{rank, file})
+				b.PlacePiece(NewPiece(player, kind), Square{Rank: rank, File: file})
 			}
 		}
 	}

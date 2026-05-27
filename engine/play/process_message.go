@@ -111,7 +111,6 @@ func (c *Connection) processLoadGame(data string) {
 		return
 	}
 	c.gs = game
-	c.engine.ResetCache()
 
 	c.SendMessage(MessageTypeLoadGameResponse, LoadGameResponse{
 		PastMoves:   PGNMovesFromGameMoves(c.gs.PastMoves),
@@ -124,7 +123,6 @@ func (c *Connection) processNewGame() {
 	c.stopPlayingEngineMovesIfRunning(true)
 
 	c.gs = g.NewGameSession()
-	c.engine.ResetCache()
 	c.SendMessage(MessageTypeLoadGameResponse, LoadGameResponse{
 		PastMoves:   PGNMovesFromGameMoves(c.gs.PastMoves),
 		CurrentMove: c.gs.CurrentMove,
@@ -145,7 +143,7 @@ func (c *Connection) processSetCurrentMove(moveIndex int) {
 
 // playUntilPlayerMove proceeds until the active player is a human player.
 func (c *Connection) playUntilPlayerMove() {
-	snapshot := c.gs.Copy()
+	sesssionCopy := c.gs.Copy()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.engineMutex.Lock()
@@ -159,7 +157,11 @@ func (c *Connection) playUntilPlayerMove() {
 				log.Printf("panic in playUntilPlayerMove goroutine: %v\n%s", r, debug.Stack())
 			}
 		}()
-		c.playEngineMoves(ctx, snapshot)
+		c.playEngineMoves(ctx, sesssionCopy)
+
+		if c.gs.MoveNumber > ai.StoringDepthThreshold {
+			go c.engine.StoreCache()
+		}
 
 		if ctx.Err() != nil {
 			return

@@ -20,7 +20,7 @@ func (b *Board) Draw() {
 		fmt.Printf("%2v ", rank+1)
 
 		for file := 0; file < BoardSize; file++ {
-			fmt.Printf("|%v", b.GetPiece(Square{rank, file}))
+			fmt.Printf("|%v", b.GetPiece(Square{Rank: rank, File: file}))
 		}
 
 		fmt.Printf("| %-2v\n", rank+1)
@@ -36,8 +36,17 @@ func (b *Board) Draw() {
 }
 
 // HumanReadableMove returns a move in a human-readable format.
-func HumanReadableMove(b *Board, move Move) string {
+func HumanReadableMove(b *Board, move Move, fixedWidth bool) string {
 	piece := Piece(b.GetPiece(move.From))
+
+	if fixedWidth {
+		if !b.IsEmpty(move.To) {
+			capturedPiece := Piece(b.GetPiece(move.To))
+			return fmt.Sprintf("%vx%v%-7s", piece, capturedPiece, move)
+		} else {
+			return fmt.Sprintf("%v    %-7s", piece, move)
+		}
+	}
 
 	if !b.IsEmpty(move.To) {
 		capturedPiece := Piece(b.GetPiece(move.To))

@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	kingSafeBoxVectors = [4][3][2]int{
-		{{-1, 1}, {0, 2}, {1, 1}},
-		{{1, 1}, {2, 0}, {1, -1}},
-		{{-1, -1}, {0, -2}, {1, -1}},
-		{{-1, -1}, {-2, 0}, {-1, 1}},
+	kingSafeBoxVectors = [4][4][2]int{
+		{{-1, 1}, {0, 1}, {0, 2}, {1, 1}},
+		{{1, 1}, {1, 0}, {2, 0}, {1, -1}},
+		{{-1, -1}, {0, -1}, {0, -2}, {1, -1}},
+		{{-1, -1}, {-1, 0}, {-2, 0}, {-1, 1}},
 	}
 )
 
@@ -20,6 +20,12 @@ var (
 // Used to seed the absolute eval at the search root; per-move updates use EvaluateMove for an incremental delta.
 func (ai *AI) EvaluateCurrent(g *Game, buffer *buffer) float64 {
 	buffer.evalsCount++
+
+	cached, ok := ai.cache.Get(g.Hash)
+	if ok {
+		return cached.eval()
+	}
+
 	playerStrengths := [4]float64{}
 
 	if g.HasEnded() {
@@ -53,6 +59,19 @@ func (ai *AI) EvaluateMove(g *Game, buffer *buffer, eval float64, move Move) (po
 	captureValueP := 0.0
 	captureValueM := 0.0
 
+	g.Play(move)
+	cached, ok := ai.cache.Get(g.Hash)
+	if ok {
+		positionEval = -cached.eval() // Opponent's perspective, since we played a move.
+		moveEval = positionEval - eval
+		g.UnplayMove(move, capturedPiece)
+		return
+	}
+
+	newStrengthP, newStrengthM := GetPieceStrength(g, piece, move.To)
+	kingSafetyP, kingSafetyM := GetKingSafetyScore(g, buffer, piece, eval)
+	g.UnplayMove(move, capturedPiece)
+
 	if !capturedPiece.IsEmpty() {
 		if capturedPiece.Kind() == KindKing {
 			return mateValue, mateValue
@@ -62,12 +81,8 @@ func (ai *AI) EvaluateMove(g *Game, buffer *buffer, eval float64, move Move) (po
 
 	oldStrengthP, oldStrengthM := GetPieceStrength(g, piece, move.From)
 
-	board.Move(move)
-	newStrengthP, newStrengthM := GetPieceStrength(g, piece, move.To)
-	board.Unmove(move, capturedPiece)
-
-	positionEval = eval + (newStrengthP - oldStrengthP) + captureValueP
-	moveEval = (newStrengthM - oldStrengthM) + captureValueM
+	positionEval = eval + (newStrengthP - oldStrengthP) + captureValueP + kingSafetyP
+	moveEval = (newStrengthM - oldStrengthM) + captureValueM + kingSafetyM
 
 	return positionEval, moveEval
 }
@@ -110,27 +125,38 @@ func GetKingThreatStrength(g *Game, piece Piece, square Square) (positionEval, m
 }
 
 // GetKingSafetyScore returns a score based on how safe the active team's kings are.
-func GetKingSafetyScore(g *Game, piece Piece, eval float64) (positionEval, moveEval float64) {
-	for _, player := range g.ActivePlayer.Teammates() {
-		kingSquare := g.Board.Kings[player]
+func GetKingSafetyScore(g *Game, buffer *buffer, piece Piece, eval float64) (positionEval, moveEval float64) {
+	board := g.Board
+	player := piece.Player()
 
-		for _, vector := range kingSafeBoxVectors[player] {
-			square := kingSquare.Add(vector[0], vector[1])
-			if !square.IsValid() || g.Board.IsEmpty(square) {
-				continue
-			}
+	kingSquare := board.Kings[player]
 
-			piece := g.Board.GetPiece(square)
-			if piece.Player().IsTeamMate(player) {
-				positionEval += 2
-			} else {
-				positionEval -= 2
-			}
+	// King safety box
+	for _, vector := range kingSafeBoxVectors[player] {
+		square := kingSquare.Add(vector[0], vector[1])
+		if !square.IsValid() || board.IsEmpty(square) {
+			continue
+		}
+
+		piece := board.GetPiece(square)
+		if piece.Player().IsTeamMate(player) {
+			positionEval += 1
+			moveEval += 1
+		} else {
+			positionEval -= 2
+			moveEval -= 2
 		}
 	}
 
+	// Attackers
+	attackers := GetAttackers(board, kingSquare, g.SquareBuffer[:0])
+	for range attackers {
+		positionEval -= 7
+		moveEval -= 10
+	}
+
 	if eval < -mateThreshold && piece.Kind() == KindKing {
-		moveEval += 5
+		moveEval += 10
 	}
 
 	return positionEval, moveEval

@@ -36,7 +36,7 @@ func Test(t *testing.T) {
 }
 
 func (s *TestSuite) SetupTest() {
-	s.engine = New(DefaultDepth, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	s.engine = New(DefaultDepth, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(&DebugConfig{}))
 
 	games := []test{
 		{
@@ -85,6 +85,35 @@ func (s *TestSuite) SetupTest() {
 3. f1-g2 b6-c6 j13-j12 h3-i2
 4. h1-i2 a6-g12 f13-g12 m6-l6
 5. j2-j3 b10-c10 g13-k9`,
+		},
+		{
+			name:     "Free queen",
+			bestMove: "f3-g4",
+			pgn: `
+1. h2-h4 a5-c4 h13-h11 m8-l8
+2. i1-h2 b7-c7 i13-i12 m10-l10
+3. d2-d3 a6-b7 g13-g12 n5-l6
+4. h1-i1 a10-c11 d13-d11 n9-k6
+5. d3-c4 c11-e12 e14-g13 n7-l9
+6. d1-d6 e12-d14 h14-h13 k6-l7
+7. f2-f3 b5-c5 g13-f11 m5-k5
+8. d6-d7 b7-c8 k13-k11 l9-g4`,
+		},
+		{
+			name:     "Evade mate",
+			bestMove: "j2-i1",
+			pgn: `
+1. h2-h4 a5-c4 h13-h11 m8-l8
+2. i1-h2 b7-c7 i13-i12 m10-l10
+3. d2-d3 a6-b7 g13-g12 n5-l6
+4. h1-i1 a10-c11 d13-d11 n9-k6
+5. d3-c4 c11-e12 e14-g13 n7-l9
+6. d1-d6 e12-d14 h14-h13 k6-l7
+7. f2-f3 b5-c5 g13-f11 m5-k5
+8. d6-d7 b7-c8 k13-k11 l9-g4
+9. f3-g4 a8-g2 f14-l8 n6-j2
+10. i1-j2 g2-f1 f11-d10 l10-k11
+11. d7-c7 b6-c7 d10-b9 l6-k4`,
 		},
 		{
 			name: "4 queens in the middle, bishops ready",

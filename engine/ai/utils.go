@@ -13,23 +13,36 @@ type candidateResult struct {
 	continuation []game.Move // detached from any buffer; safe to keep.
 }
 
-// searchRootMove plays the candidate move, runs Negamax on it, and returns the score and continuation.
-func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, candidate moveScore, alpha, beta float64) (score float64, continuation []game.Move) {
-	move := candidate.move
+// searchAtDepth runs one iterative-deepening iteration at the given target depth.
+func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, score float64, err error) {
+	ai.bfsDepth = depth
 
-	capturedPiece := g.Play(move)
-	opponentScore := ai.Negamax(g, buffer, cpu, 2, -candidate.posEval, -beta, -alpha)
-	g.UnplayMove(move, capturedPiece)
+	buffer := &ai.buffers[0]
+	ai.sharedAlpha.Store(math.Float64bits(-mateValue))
 
-	score = fromOpponentScore(opponentScore)
-	ai.raiseSharedAlpha(score)
+	eval := 0.0
 
-	childCont := buffer.continuation[2]
-	continuation = make([]game.Move, 0, len(childCont)+1)
-	continuation = append(continuation, move)
-	continuation = append(continuation, childCont...)
+	cachedMove := game.NullMove
+	cached, ok := ai.cache.Get(g.Hash)
+	if ok {
+		cachedMove = cached.move()
+		eval = cached.eval()
+	} else {
+		eval = ai.EvaluateCurrent(g, buffer)
+	}
 
-	return score, continuation
+	movesToSearch := ai.GetMovesToSearch(g, buffer, 1, eval, cachedMove)
+	if len(movesToSearch) == 0 {
+		return nil, 0, ErrNoMoves
+	}
+
+	bestScore, bestContinuation := ai.searchRootMovesParallel(g, movesToSearch, mateValue+1)
+
+	if len(bestContinuation) > 0 && !ai.stopFlag.Load() {
+		ai.cache.Set(g.Hash, bestContinuation[0], bestScore, int8(depth-1), BoundExact, g.MoveNumber)
+	}
+
+	return bestContinuation, bestScore, nil
 }
 
 // searchRootMovesParallel searches the candidates concurrently — one goroutine per
@@ -71,36 +84,30 @@ func (ai *AI) searchRootMovesParallel(g *game.Game, candidates []moveScore, beta
 		}
 	}
 
+	if ai.debugConfig != nil {
+		ai.debugConfig.captureSearchResults(results, ai.bfsDepth)
+	}
+
 	return bestScore, bestContinuation
 }
 
-// searchAtDepth runs one iterative-deepening iteration at the given target depth.
-func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, score float64, err error) {
-	ai.bfsDepth = depth
+// searchRootMove plays the candidate move, runs Negamax on it, and returns the score and continuation.
+func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, candidate moveScore, alpha, beta float64) (score float64, continuation []game.Move) {
+	move := candidate.move
 
-	buffer := &ai.buffers[0]
-	ai.sharedAlpha.Store(math.Float64bits(-(mateValue + 1)))
+	capturedPiece := g.Play(move)
+	opponentScore := ai.Negamax(g, buffer, cpu, 2, -candidate.posEval, -beta, -alpha)
+	g.UnplayMove(move, capturedPiece)
 
-	eval := ai.EvaluateCurrent(g, buffer)
+	score = fromOpponentScore(opponentScore)
+	ai.raiseSharedAlpha(score)
 
-	var cachedMove game.Move
-	cached, ok := ai.cache.Get(g.Hash)
-	if ok {
-		cachedMove = cached.move()
-	}
+	childCont := buffer.continuation[2]
+	continuation = make([]game.Move, 0, 1+len(childCont))
+	continuation = append(continuation, move)
+	continuation = append(continuation, childCont...)
 
-	movesToSearch := ai.GetMovesToSearch(g, buffer, 1, eval, cachedMove)
-	if len(movesToSearch) == 0 {
-		return nil, 0, ErrNoMoves
-	}
-
-	bestScore, bestContinuation := ai.searchRootMovesParallel(g, movesToSearch, mateValue+1)
-
-	if len(bestContinuation) > 0 && !ai.stopFlag.Load() {
-		ai.cache.Set(g.Hash, bestContinuation[0], bestScore, int8(depth-1), BoundExact, g.MoveNumber)
-	}
-
-	return bestContinuation, bestScore, nil
+	return score, continuation
 }
 
 // Selection sort the top moves for performance.

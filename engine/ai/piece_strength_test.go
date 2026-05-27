@@ -306,7 +306,7 @@ func (s *TestSuite) TestPrecomputedSpeed() {
 }
 
 func getRandomSquare() Square {
-	return Square{rand.Intn(BoardSize), rand.Intn(BoardSize)}
+	return Square{Rank: rand.Intn(BoardSize), File: rand.Intn(BoardSize)}
 }
 
 func isCorner(rank, file int) bool {

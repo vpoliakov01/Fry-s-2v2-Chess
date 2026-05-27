@@ -10,7 +10,7 @@ import (
 )
 
 func (s *TestSuite) TestConsecutiveMoves() {
-	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(&DebugConfig{}))
 	g := s.GetGame("4 queens in the middle, bishops ready").Copy()
 	moves := 10
 
@@ -27,7 +27,7 @@ func (s *TestSuite) TestConsecutiveMoves() {
 		}
 		move := continuation[0]
 
-		moveStr := game.HumanReadableMove(g.Board, move)
+		moveStr := game.HumanReadableMove(g.Board, move, true)
 
 		g.Play(move)
 		g.Board.Draw()
@@ -74,7 +74,7 @@ func (s *TestSuite) TestEngineDepthsPerformance() {
 
 		for _, d := range depths {
 			start := time.Now()
-			engine := New(d, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+			engine := New(d, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(&DebugConfig{}))
 
 			continuations := [][]game.Move{}
 			scores := []float64{}

@@ -9,7 +9,7 @@ import (
 )
 
 func (s *TestSuite) TestCache() {
-	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(&DebugConfig{}))
 	moves := 1
 
 	conts := make([][]game.Move, moves)

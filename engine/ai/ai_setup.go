@@ -45,17 +45,10 @@ func init() {
 	fmt.Printf("Running on %v CPUs (GOMAXPROCS=%v)\n", cpus, runtime.GOMAXPROCS(0))
 }
 
-// WithEnableDebug enables debug analytics.
-func WithEnableDebug(enableDebug bool) func(*AI) {
+// WithDebugConfig configures debug logging.
+func WithDebugConfig(cfg *DebugConfig) func(*AI) {
 	return func(ai *AI) {
-		ai.enableDebug = enableDebug
-	}
-}
-
-// WithEnableDebugLogging enables debug logging.
-func WithEnableDebugLogging(enableDebugLogging bool) func(*AI) {
-	return func(ai *AI) {
-		ai.enableDebugLogging = enableDebugLogging
+		ai.debugConfig = cfg
 	}
 }
 

@@ -15,7 +15,7 @@ func (b *Board) SetPieceSquares() {
 
 	for rank := 0; rank < BoardSize; rank++ {
 		for file := 0; file < BoardSize; file++ {
-			square := Square{rank, file}
+			square := Square{Rank: rank, File: file}
 			if !square.IsValid() || b.IsEmpty(square) {
 				continue
 			}

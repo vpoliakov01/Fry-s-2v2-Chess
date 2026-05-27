@@ -11,9 +11,13 @@ import (
 func (s *TestSuite) TestGetBestMove() {
 	r := s.Require()
 
-	engine := New(12, 8, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	debugCfg := &DebugConfig{
+		// Continuation: "f3-g4 c8-d7 f11-e9 l6-n7 h2-c7 b6-c7 e9-d7 n10-m8 g1-k5 d14-f13 h13-f13 n6-j2",
+	}
+	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(debugCfg))
+	// engine := New(12, DefaultSpread, DefaultSpreadDrop, 0)
 	gameFilter := ""
-	// gameFilter = "3 queens, mate in 6 (j4-m7)"
+	gameFilter = "Free queen"
 
 	games := s.solvedGames
 	if gameFilter != "" {
@@ -39,8 +43,7 @@ func (s *TestSuite) TestGetBestMove() {
 
 		move := continuation[0]
 
-		moveStr := game.HumanReadableMove(g.Board, move)
-		g.Board.Draw()
+		moveStr := game.HumanReadableMove(g.Board, move, true)
 		g.Play(move)
 		g.Board.Draw()
 
@@ -57,15 +60,17 @@ func (s *TestSuite) TestGetBestMove() {
 }
 
 func (s *TestSuite) TestBestMoveIndexes() {
-	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithEnableDebug(true))
+	r := s.Require()
+	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(&DebugConfig{}))
 
 	for _, gt := range s.solvedGames {
 		g := gt.Copy()
 
-		_, _, err := engine.GetBestMove(g.Game)
-		s.Require().NoError(err)
+		continuation, _, err := engine.GetBestMove(g.Game)
+		r.NoError(err)
 
-		engine.PrintBestMoveIndexes(false, true)
+		move := continuation[0]
+		r.Equal(move, *gt.bestMove, "Incorrect best move for game %v: %s, expected %s", gt.name, move, gt.bestMove)
 	}
 }
 

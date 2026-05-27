@@ -44,23 +44,7 @@ var (
 		2: color.Yellow,
 		3: color.Green,
 	}
-
-	knightDirs = [][2]int{{-2, -1}, {-2, 1}, {-1, -2}, {-1, 2}, {1, -2}, {1, 2}, {2, -1}, {2, 1}}
-	bishopDirs = [][2]int{{-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
-	rookDirs   = [][2]int{{-1, 0}, {0, -1}, {0, 1}, {1, 0}}
-	queenDirs  = [][2]int{{-1, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
-	kingDirs   = [][2]int{{-1, 0}, {0, -1}, {0, 1}, {1, 0}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
-
-	dirsByKind = [8][][2]int{}
 )
-
-func init() {
-	dirsByKind[KindKnight] = knightDirs
-	dirsByKind[KindBishop] = bishopDirs
-	dirsByKind[KindRook] = rookDirs
-	dirsByKind[KindQueen] = queenDirs
-	dirsByKind[KindKing] = kingDirs
-}
 
 // New creates a new Piece.
 func NewPiece(player Player, kind PieceKind) Piece {
@@ -91,22 +75,5 @@ func (p Piece) String() string {
 		return "   "
 	default:
 		return fmt.Sprintf(" %v%v%v ", colorMap[p.Player()], printMap[p.Kind()], color.Reset)
-	}
-}
-
-// GetMoves appends the moves this piece can make to dst and returns the extended slice.
-// Dispatches on Kind() so the call sites in the search hot path can inline.
-func (p Piece) GetMoves(board *Board, from Square, dst []Square) []Square {
-	kind := p.Kind()
-
-	switch kind {
-	case KindQueen, KindBishop, KindRook:
-		return GetDirectionalMoves(board, from, dirsByKind[kind], dst)
-	case KindKnight, KindKing:
-		return GetEnumeratedMoves(board, from, dirsByKind[kind], dst)
-	case KindPawn:
-		return GetPawnMoves(board, from, dst)
-	default:
-		panic(fmt.Sprintf("unsupported piece: %v", p))
 	}
 }

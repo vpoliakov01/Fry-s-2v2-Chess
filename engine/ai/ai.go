@@ -27,9 +27,8 @@ type AI struct {
 	hasStopped  atomic.Bool // True when GetBestMove is not running.
 	sharedAlpha atomic.Uint64
 
-	enableDebug        bool
-	enableDebugLogging bool
-	BestMoves          [][]BestmoveDataAvgAcc
+	debugConfig *DebugConfig
+	BestMoves   [][]bestmoveDataAvgAcc
 }
 
 // New creates a new AI.
@@ -49,10 +48,6 @@ func New(depth, spread, spreadDrop, evalLimit int, options ...func(*AI)) *AI {
 		option(ai)
 	}
 
-	if ai.enableDebug {
-		ai.InitDebug()
-	}
-
 	if err := ai.LoadCache(); err != nil {
 		fmt.Printf("Failed to load transposition table: %v\n", err)
 	}
@@ -64,11 +59,10 @@ func New(depth, spread, spreadDrop, evalLimit int, options ...func(*AI)) *AI {
 // GetBestMove returns the predicted continuation up to the search depth.
 // The first element of the continuation is the best move itself.
 func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64, err error) {
+	ai.InitDebug(g)
+
 	ai.hasStopped.Store(false)
-	defer func() {
-		go ai.StoreCache()
-		ai.hasStopped.Store(true)
-	}()
+	defer ai.hasStopped.Store(true)
 
 	ai.stopFlag.Store(false)
 	ai.EvalsCount = 0
@@ -113,6 +107,9 @@ func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64
 	}
 
 	ai.sumEvalsCounts()
+	if ai.debugConfig != nil {
+		ai.PrintSearchResults(g)
+	}
 	return bestContinuation, bestScore, nil
 }
 
@@ -134,14 +131,15 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 	remainingDepth := int8(ai.bfsDepth - depth)
 	alphaOrig := alpha
 
-	cachedMove := game.Move{}
+	cachedMove := game.NullMove
 	cached, ok := ai.cache.Get(g.Hash)
 	if ok {
 		cachedMove = cached.move()
+		eval = cached.eval()
 
-		if cached.depth >= remainingDepth && canCutoff(cached.score, cached.bound, alpha, beta) {
+		if cached.depth >= remainingDepth && canCutoff(eval, alpha, beta, cached.bound) {
 			buffer.continuation[depth] = append(buffer.continuation[depth][:0], cachedMove)
-			return float64(cached.score)
+			return eval
 		}
 	}
 
@@ -191,23 +189,7 @@ func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha,
 		ai.cache.Set(g.Hash, bestMove, bestScore, remainingDepth, boundOf(bestScore, alphaOrig, beta), g.MoveNumber)
 	}
 
-	if ai.enableDebug {
-		// Locate bestMove in the full sorted move list to report its ordering index.
-		moveEvals := buffer.moveEvals[depth]
-		bestMoveIndex := 0
-		for i := range moveEvals {
-			if moveEvals[i].move == bestMove {
-				bestMoveIndex = i
-				break
-			}
-		}
-		ai.recordBestMove(BestMoveData{
-			Depth:      depth,
-			MoveIndex:  bestMoveIndex,
-			TotalMoves: len(moveEvals),
-			ScoreDelta: bestScore - moveEvals[0].posEval,
-		}, cpu)
-	}
+	ai.recordBestMove(buffer, depth, bestMove, bestScore, cpu)
 
 	return bestScore
 }
@@ -237,11 +219,8 @@ func (ai *AI) GetMovesToSearch(g *game.Game, buffer *buffer, depth int, eval flo
 
 	movesToSearch := buffer.movesToSearch[depth][:0]
 
-	if ai.enableDebugLogging && depth == 1 {
-		for i, moveEval := range moveEvals {
-			move := moveEval.move
-			fmt.Println(i, " ", game.HumanReadableMove(board, move), "eval:", moveEval.posEval)
-		}
+	if ai.debugConfig != nil {
+		ai.PrintMoveOrderingStats(g, moveEvals, eval, movesLeft, firstMove)
 	}
 
 	// Append the most promising external move.
