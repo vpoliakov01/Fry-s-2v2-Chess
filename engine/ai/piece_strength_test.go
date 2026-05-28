@@ -70,11 +70,11 @@ func (s *TestSuite) TestBonuses() {
 		sum := 0.0
 		for rank := 0; rank < BoardSize; rank++ {
 			for file := 0; file < BoardSize; file++ {
-				if isCorner(rank, file) {
+				if isCorner(file, rank) {
 					fmt.Printf("     ")
 				} else {
-					fmt.Printf("%.2f ", tc.f(Square{Rank: rank, File: file})+bonus)
-					sum += tc.f(Square{Rank: rank, File: file})
+					fmt.Printf("%.2f ", tc.f(Square{File: file, Rank: rank})+bonus)
+					sum += tc.f(Square{File: file, Rank: rank})
 				}
 			}
 			fmt.Println()
@@ -102,7 +102,7 @@ func (s *TestSuite) TestPrecomputedBonuses() {
 		sum := 0.0
 		for rank := 0; rank < BoardSize; rank++ {
 			for file := 0; file < BoardSize; file++ {
-				if isCorner(rank, file) {
+				if isCorner(file, rank) {
 					fmt.Printf("     ")
 				} else {
 					v := StrengthPrecomputed[tc.kind][rank][file]
@@ -145,7 +145,7 @@ func (s *TestSuite) TestPieceStrengths() {
 
 		for rank := 0; rank < BoardSize; rank++ {
 			for file := 0; file < BoardSize; file++ {
-				square := Square{Rank: rank, File: file}
+				square := Square{File: file, Rank: rank}
 				if !square.IsValid() {
 					fmt.Printf("     ")
 					continue
@@ -245,7 +245,7 @@ func (s *TestSuite) TestPrecomputedSpeed() {
 	var precomputed [BoardSize][BoardSize]float64
 	for rank := 0; rank < BoardSize; rank++ {
 		for file := 0; file < BoardSize; file++ {
-			precomputed[rank][file] = GetBalanceBonus(Square{Rank: rank, File: file})
+			precomputed[rank][file] = GetBalanceBonus(Square{File: file, Rank: rank})
 		}
 	}
 
@@ -306,10 +306,10 @@ func (s *TestSuite) TestPrecomputedSpeed() {
 }
 
 func getRandomSquare() Square {
-	return Square{Rank: rand.Intn(BoardSize), File: rand.Intn(BoardSize)}
+	return Square{File: rand.Intn(BoardSize), Rank: rand.Intn(BoardSize)}
 }
 
-func isCorner(rank, file int) bool {
+func isCorner(file, rank int) bool {
 	return (rank < 3 && file < 3) ||
 		(rank < 3 && file >= BoardSize-3) ||
 		(rank >= BoardSize-3 && file < 3) ||

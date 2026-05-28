@@ -20,7 +20,7 @@ func (b *Board) Draw() {
 		fmt.Printf("%2v ", rank+1)
 
 		for file := 0; file < BoardSize; file++ {
-			fmt.Printf("|%v", b.GetPiece(Square{Rank: rank, File: file}))
+			fmt.Printf("|%v", b.GetPiece(Square{File: file, Rank: rank}))
 		}
 
 		fmt.Printf("| %-2v\n", rank+1)

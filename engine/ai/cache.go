@@ -162,7 +162,7 @@ func packSquare(s game.Square) uint8 {
 
 // unpackSquare reverses packSquare.
 func unpackSquare(b uint8) game.Square {
-	return game.Square{Rank: int(b >> 4), File: int(b & 0x0F)}
+	return game.Square{File: int(b & 0x0F), Rank: int(b >> 4)}
 }
 
 // move returns the entry's move as a game.Move.

@@ -22,10 +22,10 @@ func TestTranspositionTableStoreLoad(t *testing.T) {
 	}
 
 	inputs := []input{
-		{0x1111111111111111, game.Move{From: game.Square{Rank: 1, File: 2}, To: game.Square{Rank: 3, File: 4}}, 1.25, 5, BoundExact},
-		{0xDEADBEEFCAFEBABE, game.Move{From: game.Square{Rank: 13, File: 13}, To: game.Square{Rank: 12, File: 12}}, -99.5, 12, BoundLower},
-		{0xFFFFFFFFFFFFFFFF, game.Move{From: game.Square{Rank: 0, File: 15}, To: game.Square{Rank: 15, File: 0}}, 0.0, 0, BoundUpper},
-		{42, game.Move{From: game.Square{Rank: 7, File: 7}, To: game.Square{Rank: 8, File: 8}}, 3.5, -3, BoundExact},
+		{0x1111111111111111, game.Move{From: game.Square{File: 2, Rank: 1}, To: game.Square{File: 4, Rank: 3}}, 1.25, 5, BoundExact},
+		{0xDEADBEEFCAFEBABE, game.Move{From: game.Square{File: 13, Rank: 13}, To: game.Square{File: 12, Rank: 12}}, -99.5, 12, BoundLower},
+		{0xFFFFFFFFFFFFFFFF, game.Move{From: game.Square{File: 15, Rank: 0}, To: game.Square{File: 0, Rank: 15}}, 0.0, 0, BoundUpper},
+		{42, game.Move{From: game.Square{File: 7, Rank: 7}, To: game.Square{File: 8, Rank: 8}}, 3.5, -3, BoundExact},
 	}
 
 	for _, in := range inputs {
@@ -67,13 +67,13 @@ func TestTranspositionTableLoadOverwrites(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "tt.bin")
 
 	src := NewTranspositionTable()
-	src.Set(0xAAAA, game.Move{From: game.Square{Rank: 1, File: 1}, To: game.Square{Rank: 2, File: 2}}, 1.0, 1, BoundExact)
+	src.Set(0xAAAA, game.Move{From: game.Square{File: 1, Rank: 1}, To: game.Square{File: 2, Rank: 2}}, 1.0, 1, BoundExact)
 	if err := src.Store(path); err != nil {
 		t.Fatalf("Store: %v", err)
 	}
 
 	dst := NewTranspositionTable()
-	dst.Set(0xBBBB, game.Move{From: game.Square{Rank: 3, File: 3}, To: game.Square{Rank: 4, File: 4}}, 2.0, 2, BoundLower)
+	dst.Set(0xBBBB, game.Move{From: game.Square{File: 3, Rank: 3}, To: game.Square{File: 4, Rank: 4}}, 2.0, 2, BoundLower)
 
 	if err := dst.Load(path); err != nil {
 		t.Fatalf("Load: %v", err)

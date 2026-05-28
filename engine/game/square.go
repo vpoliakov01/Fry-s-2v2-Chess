@@ -12,8 +12,8 @@ type Square struct {
 }
 
 // Add adds a vector to the square.
-func (s *Square) Add(rank, file int) Square {
-	return Square{Rank: s.Rank + rank, File: s.File + file}
+func (s *Square) Add(file, rank int) Square {
+	return Square{File: s.File + file, Rank: s.Rank + rank}
 }
 
 // String implements the Stringer interface.
@@ -37,5 +37,5 @@ func SquareFromPGN(pgn string) Square {
 	if err != nil {
 		return Square{}
 	}
-	return Square{Rank: rank - 1, File: int(pgn[0] - 'a')}
+	return Square{File: int(pgn[0] - 'a'), Rank: rank - 1}
 }

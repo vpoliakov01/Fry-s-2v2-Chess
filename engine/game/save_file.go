@@ -85,8 +85,8 @@ func ParseMove(m string) (*Move, error) {
 	toRank--
 
 	return &Move{
-		From: Square{Rank: fromRank, File: fromFile},
-		To:   Square{Rank: toRank, File: toFile},
+		From: Square{File: fromFile, Rank: fromRank},
+		To:   Square{File: toFile, Rank: toRank},
 	}, nil
 }
 

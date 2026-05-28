@@ -76,15 +76,15 @@ func (s *TestSuite) TestBestMoveIndexes() {
 
 func (s *TestSuite) TestPosition() {
 	pieces := [][]int{
-		{int(game.NewPiece(0, game.KindKing)), 13, 10},
-		{int(game.NewPiece(0, game.KindPawn)), 13, 9},
-		{int(game.NewPiece(0, game.KindPawn)), 12, 10},
-		{int(game.NewPiece(0, game.KindPawn)), 12, 9},
-		{int(game.NewPiece(1, game.KindKing)), 6, 1},
-		{int(game.NewPiece(2, game.KindKing)), 12, 6},
-		{int(game.NewPiece(3, game.KindKing)), 8, 13},
-		{int(game.NewPiece(2, game.KindQueen)), 9, 12},
-		{int(game.NewPiece(0, game.KindQueen)), 10, 13},
+		{int(game.NewPiece(0, game.KindKing)), 10, 13},
+		{int(game.NewPiece(0, game.KindPawn)), 9, 13},
+		{int(game.NewPiece(0, game.KindPawn)), 10, 12},
+		{int(game.NewPiece(0, game.KindPawn)), 9, 12},
+		{int(game.NewPiece(1, game.KindKing)), 1, 6},
+		{int(game.NewPiece(2, game.KindKing)), 6, 12},
+		{int(game.NewPiece(3, game.KindKing)), 13, 8},
+		{int(game.NewPiece(2, game.KindQueen)), 12, 9},
+		{int(game.NewPiece(0, game.KindQueen)), 13, 10},
 	}
 
 	g := game.NewGame()
@@ -92,10 +92,10 @@ func (s *TestSuite) TestPosition() {
 
 	for i := range pieces {
 		piece := game.Piece(pieces[i][0])
-		rank := pieces[i][1]
-		file := pieces[i][2]
+		file := pieces[i][1]
+		rank := pieces[i][2]
 
-		g.Board.PlacePiece(piece, game.Square{Rank: rank, File: file})
+		g.Board.PlacePiece(piece, game.Square{File: file, Rank: rank})
 	}
 
 	engine := New(2, DefaultSpread, DefaultSpreadDrop, 0)
