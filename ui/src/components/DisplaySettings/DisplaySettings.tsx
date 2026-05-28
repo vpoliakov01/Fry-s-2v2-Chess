@@ -2,11 +2,9 @@ import React from 'react';
 import { Color, colorCode } from '../../common';
 import { useBoardStateContext } from '../../context/BoardStateContext';
 import { MoveNotation, ShowLabels } from '../../utils';
+import { moveNotationOptions, showLabelsOptions } from '../../utils/GameStateManager';
 import { Checkbox } from '../Checkbox';
 import styles from './DisplaySettings.module.css';
-
-const moveNotationOptions: MoveNotation[] = ['PGN', 'SAN', 'FAN', 'FAN+'];
-const showLabelsOptions: ShowLabels[] = ['all', 'border', 'pieces', 'moves', 'moves+', 'none'];
 
 function capitalize(s: string): string {
 	return s.charAt(0).toUpperCase() + s.slice(1);

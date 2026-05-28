@@ -14,8 +14,8 @@ export interface SavedBoardState {
 	drawnArrows: ArrowProps[];
 }
 
-const showLabelsOptions = ['all', 'border', 'pieces', 'moves', 'moves+', 'none'] as const;
-const moveNotationOptions = ['PGN', 'SAN', 'FAN', 'FAN+'] as const;
+export const showLabelsOptions = ['all', 'border', 'pieces', 'moves', 'moves+', 'debug', 'none'] as const;
+export const moveNotationOptions = ['PGN', 'SAN', 'FAN', 'FAN+'] as const;
 
 export type ShowLabels = typeof showLabelsOptions[number];
 export type MoveNotation = typeof moveNotationOptions[number];

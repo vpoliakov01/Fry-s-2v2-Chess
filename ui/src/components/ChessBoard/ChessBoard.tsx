@@ -123,6 +123,8 @@ export function ChessBoard() {
 				return !!board[row][col] || higlightedSquares.some(m => positionsEqual(m, { row, col })) ? label : '';
 			case 'moves+':
 				return !!board[row][col] || availableMoves.some(m => positionsEqual(m.to, { row, col })) ? label : '';
+			case 'debug':
+				return `${col} ${BOARD_SIZE - row - 1}`;
 			default:
 				return '';
 		}
