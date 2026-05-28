@@ -118,26 +118,24 @@ func (ai *AI) GetBestMove(g *game.Game) (continuation []game.Move, score float64
 // Alpha and beta params are used for alpha-beta pruning (skipping evalution
 // of branches that are guaranteed not to be picked by any of players).
 func (ai *AI) Negamax(g *game.Game, buffer *buffer, cpu, depth int, eval, alpha, beta float64) (score float64) {
-	buffer.continuation[depth] = buffer.continuation[depth][:0] // Reset the buffer.
 
 	// Check base cases.
-	if g.HasEnded() {
-		return -mateValue
-	}
 	if depth > ai.bfsDepth {
-		return eval
+		return ai.EvaluateCurrent(g, buffer)
+		// return eval
 	}
 
+	buffer.continuation[depth] = buffer.continuation[depth][:0] // Reset the buffer.
 	remainingDepth := int8(ai.bfsDepth - depth)
 	alphaOrig := alpha
 
 	cachedMove := game.NullMove
 	cached, ok := ai.cache.Get(g.Hash)
 	if ok {
-		cachedMove = cached.move()
-		eval = cached.eval()
+		cachedMove = cached.Move()
+		eval = cached.Eval()
 
-		if cached.depth >= remainingDepth && canCutoff(eval, alpha, beta, cached.bound) {
+		if cached.Depth >= remainingDepth && canCutoff(eval, alpha, beta, cached.Bound) {
 			buffer.continuation[depth] = append(buffer.continuation[depth][:0], cachedMove)
 			return eval
 		}

@@ -24,6 +24,11 @@ func (p Player) Team() Team {
 	return Team(1 - 2*t)
 }
 
+// Teammate returns the teammate of the player.
+func (p Player) Teammate() Player {
+	return p ^ 2 // Flip the second bit.
+}
+
 // Teammates returns the two players on the same team.
 func (p Player) Teammates() []Player {
 	return Opponents[(p+1)%2]

@@ -39,10 +39,6 @@ export function MoveTable({ mode }: MoveTableProps) {
 	const [disableHover, setDisableHover] = useState<boolean>(false);
 
 	const selectMove = useCallback((index: number) => {
-		if (index === selectedMove) {
-			return;
-		}
-
 		// Stop the engine, set all players to human.
 		if (settings.humanPlayers.length !== PlayerColors.length) {
 			const newSettings = { ...settings, humanPlayers: PlayerColors.map((_, i) => i) };
@@ -53,7 +49,7 @@ export function MoveTable({ mode }: MoveTableProps) {
 		setSelectedMove(index);
 		setViewMove(index);
 		sendMessage(new Message(MessageType.SetCurrentMove, index));
-	}, [selectedMove, settings, setSettings, setViewMove, sendMessage]);
+	}, [settings, setSettings, setViewMove, sendMessage]);
 
 	const playContinuation = useCallback((index: number) => {
 		if (index < 1) {

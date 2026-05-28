@@ -12,24 +12,28 @@ func (s *TestSuite) TestGetBestMove() {
 	r := s.Require()
 
 	debugCfg := &DebugConfig{
-		// Continuation: "f3-g4 c8-d7 f11-e9 l6-n7 h2-c7 b6-c7 e9-d7 n10-m8 g1-k5 d14-f13 h13-f13 n6-j2",
+		// Continuation: "j4-m7 g8-13",
 	}
-	engine := New(12, DefaultSpread, DefaultSpreadDrop, 0, WithDebugConfig(debugCfg))
-	// engine := New(12, DefaultSpread, DefaultSpreadDrop, 0)
+	engine := New(12, 8, 2, 0, WithDebugConfig(debugCfg))
+	// engine := New(12, DefaultSpread, 1, 0, WithDebugConfig(debugCfg))
 	gameFilter := ""
-	gameFilter = "Free queen"
+	gameFilter = "Test2"
 
-	games := s.solvedGames
+	games := s.games
 	if gameFilter != "" {
-		games = []*GameTest{}
-		for _, g := range s.solvedGames {
+		filteredGames := []*GameTest{}
+		for _, g := range games {
 			if g.name == gameFilter {
-				games = append(games, g)
+				filteredGames = append(filteredGames, g)
 			}
 		}
+		games = filteredGames
 	}
 
 	for i, g := range games {
+		fmt.Printf("\nName: %s\n", g.name)
+		g.Board.Draw()
+
 		startTime := time.Now()
 		continuation, score, err := engine.GetBestMove(g.Game)
 		if err != nil {
@@ -55,7 +59,9 @@ func (s *TestSuite) TestGetBestMove() {
 		fmt.Println(time.Since(startTime))
 		fmt.Println()
 
-		r.Equal(*g.bestMove, move, "Incorrect best move for game %v: %s, expected %s", g.name, move, g.bestMove)
+		if g.bestMove != nil {
+			r.Equal(*g.bestMove, move, "Incorrect best move for game %v: %s, expected %s", g.name, move, g.bestMove)
+		}
 	}
 }
 

@@ -16,11 +16,11 @@ const (
 
 // On-disk format for the transposition table. Only non-empty entries are written.
 // Header (32 bits):  headerType(4) | version(1) | sizeBits(1) | count(4) | reserved(22)
-// Entry (80 bits):   key(32) | score(16) | depth(8) | from(8) | to(8) | bound(8)
+// Entry (80 bits):   index(32) | key(32) | score(16) | depth(8) | from(8) | to(8) | bound(8)
 const (
 	cacheHeaderType = "TTBL"
 	cacheVersion    = uint8(1)
-	cacheEntryBytes = 10
+	cacheEntryBytes = 14
 )
 
 // Store writes the non-empty entries of t to path.
@@ -46,7 +46,7 @@ func (t *TranspositionTable) Store(path string) error {
 
 	count := uint32(0)
 	for i := range t.entries {
-		if t.entries[i].key != 0 {
+		if t.entries[i].Key != 0 {
 			count++
 		}
 	}
@@ -65,16 +65,19 @@ func (t *TranspositionTable) Store(path string) error {
 	buf := [cacheEntryBytes]byte{}
 	for i := range t.entries {
 		e := &t.entries[i]
-		if e.key == 0 {
+		if e.Key == 0 {
 			continue
 		}
 
-		binary.LittleEndian.PutUint32(buf[0:4], e.key)
-		binary.LittleEndian.PutUint16(buf[4:6], uint16(e.score))
-		buf[6] = uint8(e.depth)
-		buf[7] = e.from
-		buf[8] = e.to
-		buf[9] = e.bound
+		key32 := uint64(e.Key)
+
+		binary.LittleEndian.PutUint32(buf[0:4], uint32(i))
+		binary.LittleEndian.PutUint32(buf[4:8], uint32(key32))
+		binary.LittleEndian.PutUint16(buf[8:10], uint16(e.Score))
+		buf[10] = uint8(e.Depth)
+		buf[11] = e.From
+		buf[12] = e.To
+		buf[13] = e.Bound
 
 		if _, err := w.Write(buf[:]); err != nil {
 			return err
@@ -140,16 +143,15 @@ func (t *TranspositionTable) Load(path string) error {
 			return err
 		}
 
-		key := binary.LittleEndian.Uint32(buf[0:4])
-		index := key & TTIndexMask
+		index := binary.LittleEndian.Uint32(buf[0:4])
 
-		t.entries[index] = entry{
-			key:   key,
-			score: int16(binary.LittleEndian.Uint16(buf[4:6])),
-			depth: int8(buf[6]),
-			from:  buf[7],
-			to:    buf[8],
-			bound: buf[9],
+		t.entries[index] = Entry{
+			Key:   binary.LittleEndian.Uint32(buf[4:8]),
+			Score: int16(binary.LittleEndian.Uint16(buf[8:10])),
+			Depth: int8(buf[10]),
+			From:  buf[11],
+			To:    buf[12],
+			Bound: buf[13],
 		}
 	}
 

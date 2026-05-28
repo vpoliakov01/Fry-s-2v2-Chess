@@ -8,10 +8,11 @@ const (
 
 // buffer holds per-worker per-depth reusable storage to avoid repeated allocations.
 type buffer struct {
-	moves         [][]game.Move
-	moveEvals     [][]moveScore
-	movesToSearch [][]moveScore
-	continuation  [][]game.Move
+	moves           [][]game.Move
+	moveEvals       [][]moveScore
+	movesToSearch   [][]moveScore
+	continuation    [][]game.Move
+	playerStrengths [4]float64
 
 	evalsCount int
 }

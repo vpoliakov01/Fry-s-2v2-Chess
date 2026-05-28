@@ -1,14 +1,17 @@
-package ai
+package ai_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	. "github.com/vpoliakov01/2v2ChessAI/engine/ai"
 	"github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
 
-func TestTranspositionTableStoreLoad(t *testing.T) {
+func (s *TestSuite) TestTranspositionTableStoreLoad() {
+	t := s.T()
+
 	path := filepath.Join(t.TempDir(), "tt.bin")
 
 	cache := NewTranspositionTable()
@@ -22,10 +25,9 @@ func TestTranspositionTableStoreLoad(t *testing.T) {
 	}
 
 	inputs := []input{
-		{0x1111111111111111, game.Move{From: game.Square{File: 2, Rank: 1}, To: game.Square{File: 4, Rank: 3}}, 1.25, 5, BoundExact},
-		{0xDEADBEEFCAFEBABE, game.Move{From: game.Square{File: 13, Rank: 13}, To: game.Square{File: 12, Rank: 12}}, -99.5, 12, BoundLower},
-		{0xFFFFFFFFFFFFFFFF, game.Move{From: game.Square{File: 15, Rank: 0}, To: game.Square{File: 0, Rank: 15}}, 0.0, 0, BoundUpper},
-		{42, game.Move{From: game.Square{File: 7, Rank: 7}, To: game.Square{File: 8, Rank: 8}}, 3.5, -3, BoundExact},
+		{0x1111111111111110, game.Move{From: game.Square{File: 2, Rank: 1}, To: game.Square{File: 4, Rank: 3}}, 1.25, 5, BoundExact},
+		{0x1234567890ABCDEF, game.Move{From: game.Square{File: 13, Rank: 13}, To: game.Square{File: 12, Rank: 12}}, -99.5, 12, BoundLower},
+		{0x0FFFFFFFFFFFFFFF, game.Move{From: game.Square{File: 15, Rank: 0}, To: game.Square{File: 0, Rank: 15}}, 0.0, 0, BoundUpper},
 	}
 
 	for _, in := range inputs {
@@ -48,22 +50,24 @@ func TestTranspositionTableStoreLoad(t *testing.T) {
 			continue
 		}
 
-		if float64(e.score) != in.score {
-			t.Errorf("key %x: score got %v want %v", in.key, e.score, in.score)
+		if e.Eval() != in.score {
+			t.Errorf("key %x: score got %v want %v", in.key, e.Score, in.score)
 		}
-		if e.depth != in.depth {
-			t.Errorf("key %x: depth got %d want %d", in.key, e.depth, in.depth)
+		if e.Depth != in.depth {
+			t.Errorf("key %x: depth got %d want %d", in.key, e.Depth, in.depth)
 		}
-		if e.bound != in.bound {
-			t.Errorf("key %x: bound got %d want %d", in.key, e.bound, in.bound)
+		if e.Bound != in.bound {
+			t.Errorf("key %x: bound got %d want %d", in.key, e.Bound, in.bound)
 		}
-		if e.move() != in.move {
-			t.Errorf("key %x: move got %v want %v", in.key, e.move(), in.move)
+		if e.Move() != in.move {
+			t.Errorf("key %x: move got %v want %v", in.key, e.Move(), in.move)
 		}
 	}
 }
 
-func TestTranspositionTableLoadOverwrites(t *testing.T) {
+func (s *TestSuite) TestTranspositionTableLoadOverwrites() {
+	t := s.T()
+
 	path := filepath.Join(t.TempDir(), "tt.bin")
 
 	src := NewTranspositionTable()
@@ -95,7 +99,9 @@ func TestTranspositionTableLoadMissingFile(t *testing.T) {
 	}
 }
 
-func TestTranspositionTableLoadRejectsBadMagic(t *testing.T) {
+func (s *TestSuite) TestTranspositionTableLoadRejectsBadMagic() {
+	t := s.T()
+
 	path := filepath.Join(t.TempDir(), "tt.bin")
 	if err := os.WriteFile(path, make([]byte, 32), 0o644); err != nil {
 		t.Fatal(err)

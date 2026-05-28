@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	kingSafeBoxVectors = [4][4][2]int{
-		{{-1, 1}, {0, 1}, {0, 2}, {1, 1}},
-		{{1, 1}, {1, 0}, {2, 0}, {1, -1}},
-		{{-1, -1}, {0, -1}, {0, -2}, {1, -1}},
-		{{-1, -1}, {-1, 0}, {-2, 0}, {-1, 1}},
+	kingSafeBoxVectors = [4][3][2]int{
+		{{-1, 1}, {0, 2}, {1, 1}},
+		{{1, 1}, {2, 0}, {1, -1}},
+		{{-1, -1}, {0, -2}, {1, -1}},
+		{{-1, -1}, {-2, 0}, {-1, 1}},
 	}
 )
 
@@ -21,24 +21,29 @@ var (
 func (ai *AI) EvaluateCurrent(g *Game, buffer *buffer) float64 {
 	buffer.evalsCount++
 
+	if g.HasEnded() {
+		return float64(g.ActivePlayer.Team()*g.Winner) * mateValue
+	}
+
 	cached, ok := ai.cache.Get(g.Hash)
 	if ok {
-		return cached.eval()
+		return cached.Eval()
 	}
 
-	playerStrengths := [4]float64{}
-
-	if g.HasEnded() {
-		return float64(g.ActivePlayer.Team()*g.Winner) * 1000
-	}
+	playerStrengths := buffer.playerStrengths
 
 	// For each piece, run piece strength evaluation.
 	for player := Player(0); player < 4; player++ {
+		playerStrengths[player] = 0.0
+
 		for _, square := range g.Board.PieceSquares[player] {
 			piece := g.Board.GetPiece(square)
 			positionEval, _ := GetPieceStrength(g, piece, square)
 			playerStrengths[player] += positionEval
 		}
+
+		kingSafety, _ := GetKingSafetyScore(g, buffer, player, g.Board.Kings[player], false)
+		playerStrengths[player] += kingSafety
 	}
 
 	redYellowStrength := playerStrengths[0] + playerStrengths[2] - math.Abs(playerStrengths[0]-playerStrengths[2])/3
@@ -55,22 +60,15 @@ func (ai *AI) EvaluateMove(g *Game, buffer *buffer, eval float64, move Move) (po
 	board := g.Board
 
 	piece := board.GetPiece(move.From)
+	player := piece.Player()
 	capturedPiece := board.GetPiece(move.To)
 	captureValueP := 0.0
 	captureValueM := 0.0
 
-	g.Play(move)
-	cached, ok := ai.cache.Get(g.Hash)
-	if ok {
-		positionEval = -cached.eval() // Opponent's perspective, since we played a move.
-		moveEval = positionEval - eval
-		g.UnplayMove(move, capturedPiece)
-		return
+	if ai.debugConfig != nil {
+		movePGN := move.String()
+		_ = movePGN
 	}
-
-	newStrengthP, newStrengthM := GetPieceStrength(g, piece, move.To)
-	kingSafetyP, kingSafetyM := GetKingSafetyScore(g, buffer, piece, eval)
-	g.UnplayMove(move, capturedPiece)
 
 	if !capturedPiece.IsEmpty() {
 		if capturedPiece.Kind() == KindKing {
@@ -80,9 +78,38 @@ func (ai *AI) EvaluateMove(g *Game, buffer *buffer, eval float64, move Move) (po
 	}
 
 	oldStrengthP, oldStrengthM := GetPieceStrength(g, piece, move.From)
+	oldPawnStructureP, oldPawnStructureM := GetPawnStructureStrength(g, piece, move.From)
+	oldKingSafetyP, oldKingSafetyM := GetKingSafetyScore(g, buffer, player, move.From, true)
+	oldTMKingSafetyP, oldTMKingSafetyM := GetKingSafetyScore(g, buffer, player.Teammate(), move.From, false)
 
-	positionEval = eval + (newStrengthP - oldStrengthP) + captureValueP + kingSafetyP
-	moveEval = (newStrengthM - oldStrengthM) + captureValueM + kingSafetyM
+	g.Play(move)
+
+	newStrengthP, newStrengthM := GetPieceStrength(g, piece, move.To)
+	newPawnStructureP, newPawnStructureM := GetPawnStructureStrength(g, piece, move.To)
+	newKingSafetyP, newKingSafetyM := GetKingSafetyScore(g, buffer, player, move.To, false)
+	newTMKingSafetyP, newTMKingSafetyM := GetKingSafetyScore(g, buffer, player.Teammate(), move.To, false)
+
+	if piece.Kind() != KindKing {
+		pieceThreatRatio := GetPieceThreatRatio(g, piece, move.To)
+		newStrengthP *= 1 - pieceThreatRatio
+		if newTMKingSafetyP > -5 {
+			newStrengthM *= 1 - pieceThreatRatio
+		}
+	}
+
+	g.UnplayMove(move, capturedPiece)
+
+	pieceStrengthDeltaP := newStrengthP - oldStrengthP
+	pieceStrengthDeltaM := newStrengthM - oldStrengthM
+
+	pawnStructureDeltaP := newPawnStructureP - oldPawnStructureP
+	pawnStructureDeltaM := newPawnStructureM - oldPawnStructureM
+
+	kingSafetyDeltaP := newKingSafetyP - oldKingSafetyP + newTMKingSafetyP - oldTMKingSafetyP
+	kingSafetyDeltaM := newKingSafetyM - oldKingSafetyM + newTMKingSafetyM - oldTMKingSafetyM
+
+	positionEval = pieceStrengthDeltaP + captureValueP + kingSafetyDeltaP + pawnStructureDeltaP + eval
+	moveEval = pieceStrengthDeltaM + captureValueM + kingSafetyDeltaM + pawnStructureDeltaM
 
 	return positionEval, moveEval
 }
@@ -93,6 +120,35 @@ func GetPieceStrength(g *Game, piece Piece, square Square) (positionEval, moveEv
 	kingThreatP, kingThreatM := GetKingThreatStrength(g, piece, square)
 
 	return positional + kingThreatP, positional + kingThreatM
+}
+
+// GetPieceThreatRatio returns the threat ratio [0, 1] signifying how threatened the piece is at the given square.
+func GetPieceThreatRatio(g *Game, piece Piece, square Square) (ratio float64) {
+	board := g.Board
+	attackers := GetAttackers(board, square, g.SquareBuffer[:0])
+	pieceValue := Strength[piece.Kind()]
+
+	for _, opponent := range piece.Player().Opponents() {
+		maxRatio := 0.0
+
+		for _, attacker := range attackers {
+			attackingPiece := board.GetPiece(attacker)
+			if attackingPiece.Player() != opponent {
+				continue
+			}
+
+			if Strength[attackingPiece.Kind()] < pieceValue {
+				maxRatio = 0.4
+				break
+			} else {
+				maxRatio = 0.2
+			}
+		}
+
+		ratio += maxRatio
+	}
+
+	return ratio
 }
 
 // GetKingThreatStrength returns a score based on how much threat the piece poses to the opponent king.
@@ -110,28 +166,21 @@ func GetKingThreatStrength(g *Game, piece Piece, square Square) (positionEval, m
 	}
 
 	for _, opponent := range piece.Player().Opponents() {
-		for _, opponentSquare := range board.PieceSquares[opponent] {
-			opponentPiece := board.GetPiece(opponentSquare)
-
-			if opponentPiece.Kind() == KindKing {
-				if square.IsWithin(opponentSquare, 2) {
-					return Strength[piece.Kind()] / 4, Strength[piece.Kind()] / 2
-				}
-			}
+		if square.IsWithin(board.Kings[opponent], 2) {
+			return Strength[piece.Kind()] / 4, Strength[piece.Kind()] / 2
 		}
 	}
 
 	return 0.0, 0.0
 }
 
-// GetKingSafetyScore returns a score based on how safe the active team's kings are.
-func GetKingSafetyScore(g *Game, buffer *buffer, piece Piece, eval float64) (positionEval, moveEval float64) {
+// GetKingSafetyScore returns a score based on how safe the given player's king is.
+func GetKingSafetyScore(g *Game, buffer *buffer, player Player, square Square, boostKingMoves bool) (positionEval, moveEval float64) {
 	board := g.Board
-	player := piece.Player()
-
+	piece := board.GetPiece(square)
 	kingSquare := board.Kings[player]
 
-	// King safety box
+	// King safety box: friendly pieces shield the king, enemy pieces threaten it.
 	for _, vector := range kingSafeBoxVectors[player] {
 		square := kingSquare.Add(vector[0], vector[1])
 		if !square.IsValid() || board.IsEmpty(square) {
@@ -148,15 +197,48 @@ func GetKingSafetyScore(g *Game, buffer *buffer, piece Piece, eval float64) (pos
 		}
 	}
 
-	// Attackers
+	// Attackers on the king.
 	attackers := GetAttackers(board, kingSquare, g.SquareBuffer[:0])
 	for range attackers {
 		positionEval -= 7
 		moveEval -= 10
 	}
 
-	if eval < -mateThreshold && piece.Kind() == KindKing {
-		moveEval += 10
+	if boostKingMoves && positionEval <= 1 && piece.Kind() == KindKing && piece.Player() == player {
+		moveEval += 3
+
+		if positionEval <= -5 {
+			moveEval += 5
+		}
+	}
+
+	return positionEval, moveEval
+}
+
+// GetPawnStructureStrength returns a bonus if the moved piece is a pawn and it's supported by other pawns.
+func GetPawnStructureStrength(g *Game, piece Piece, square Square) (positionEval, moveEval float64) {
+	if piece.Kind() != KindPawn {
+		return 0, 0
+	}
+
+	player := piece.Player()
+
+	for _, dir := range PawnCaptureDirs[player] {
+		supportingSquare := square.Add(-dir[0], -dir[1])
+		if !supportingSquare.IsValid() {
+			continue
+		}
+
+		supportPiece := g.Board.GetPiece(supportingSquare)
+		if supportPiece == piece { // Same player and kind
+			positionEval += 0.2
+			moveEval += 0.3
+		}
+
+		if supportPiece.Player() == player && (supportPiece.Kind() == KindQueen || supportPiece.Kind() == KindBishop) {
+			positionEval -= 0.3 // Blocking queen or bishop penalty
+			moveEval -= 0.5
+		}
 	}
 
 	return positionEval, moveEval

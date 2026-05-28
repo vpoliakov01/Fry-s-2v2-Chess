@@ -141,6 +141,20 @@ func GetAttackers(board *Board, square Square, dst []Square) []Square {
 		}
 	}
 
+	// Check king directions.
+	for _, vector := range KingDirs {
+		from := square.Add(vector[0], vector[1])
+
+		if !from.IsValid() || board.IsEmpty(from) {
+			continue
+		}
+
+		piece := board.GetPiece(from)
+		if piece.Kind() == KindKing && !piece.Player().IsTeamMate(player) {
+			dst = append(dst, from)
+		}
+	}
+
 	// Check pawns.
 	opponents := player.Opponents()
 	for _, opponent := range opponents {

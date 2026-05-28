@@ -44,7 +44,7 @@ func HumanReadableMove(b *Board, move Move, fixedWidth bool) string {
 			capturedPiece := Piece(b.GetPiece(move.To))
 			return fmt.Sprintf("%vx%v%-7s", piece, capturedPiece, move)
 		} else {
-			return fmt.Sprintf("%v    %-7s", piece, move)
+			return fmt.Sprintf("    %v%-7s", piece, move)
 		}
 	}
 

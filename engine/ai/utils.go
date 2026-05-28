@@ -20,15 +20,12 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 	buffer := &ai.buffers[0]
 	ai.sharedAlpha.Store(math.Float64bits(-mateValue))
 
-	eval := 0.0
+	eval := ai.EvaluateCurrent(g, buffer)
 
 	cachedMove := game.NullMove
 	cached, ok := ai.cache.Get(g.Hash)
 	if ok {
-		cachedMove = cached.move()
-		eval = cached.eval()
-	} else {
-		eval = ai.EvaluateCurrent(g, buffer)
+		cachedMove = cached.Move()
 	}
 
 	movesToSearch := ai.GetMovesToSearch(g, buffer, 1, eval, cachedMove)
@@ -47,20 +44,20 @@ func (ai *AI) searchAtDepth(g *game.Game, depth int) (continuation []game.Move, 
 
 // searchRootMovesParallel searches the candidates concurrently — one goroutine per
 // candidate, each on its own game copy and buffer. Returns the best score and continuation.
-func (ai *AI) searchRootMovesParallel(g *game.Game, candidates []moveScore, beta float64) (float64, []game.Move) {
+func (ai *AI) searchRootMovesParallel(g *game.Game, moves []moveScore, beta float64) (float64, []game.Move) {
 	// Pool of CPUs for the goroutines.
 	cpuIDs := make(chan int, cpus)
 	for i := range cpus {
 		cpuIDs <- i
 	}
 
-	results := make([]candidateResult, len(candidates))
+	results := make([]candidateResult, len(moves))
 	var wg sync.WaitGroup
 
-	for i, candidate := range candidates {
+	for i, move := range moves {
 		wg.Add(1)
 
-		go func(slot int, candidate moveScore) {
+		go func(slot int, move moveScore) {
 			defer wg.Done()
 			cpuID := <-cpuIDs
 			defer func() { cpuIDs <- cpuID }()
@@ -68,9 +65,9 @@ func (ai *AI) searchRootMovesParallel(g *game.Game, candidates []moveScore, beta
 			gameCopy := g.Copy()
 			alpha := ai.loadSharedAlpha()
 
-			score, continuation := ai.searchRootMove(gameCopy, &ai.buffers[cpuID], cpuID, candidate, alpha, beta)
+			score, continuation := ai.searchRootMove(gameCopy, &ai.buffers[cpuID], cpuID, move, alpha, beta)
 			results[slot] = candidateResult{score: score, continuation: continuation}
-		}(i, candidate)
+		}(i, move)
 	}
 	wg.Wait()
 
@@ -92,11 +89,11 @@ func (ai *AI) searchRootMovesParallel(g *game.Game, candidates []moveScore, beta
 }
 
 // searchRootMove plays the candidate move, runs Negamax on it, and returns the score and continuation.
-func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, candidate moveScore, alpha, beta float64) (score float64, continuation []game.Move) {
-	move := candidate.move
+func (ai *AI) searchRootMove(g *game.Game, buffer *buffer, cpu int, moveScore moveScore, alpha, beta float64) (score float64, continuation []game.Move) {
+	move := moveScore.move
 
 	capturedPiece := g.Play(move)
-	opponentScore := ai.Negamax(g, buffer, cpu, 2, -candidate.posEval, -beta, -alpha)
+	opponentScore := ai.Negamax(g, buffer, cpu, 2, -moveScore.posEval, -beta, -alpha)
 	g.UnplayMove(move, capturedPiece)
 
 	score = fromOpponentScore(opponentScore)

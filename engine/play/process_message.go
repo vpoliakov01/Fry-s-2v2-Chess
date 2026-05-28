@@ -159,9 +159,7 @@ func (c *Connection) playUntilPlayerMove() {
 		}()
 		c.playEngineMoves(ctx, sesssionCopy)
 
-		if c.gs.MoveNumber > ai.StoringDepthThreshold {
-			go c.engine.StoreCache()
-		}
+		go c.engine.StoreCache()
 
 		if ctx.Err() != nil {
 			return

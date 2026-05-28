@@ -35,16 +35,14 @@ func GetEdgeBonus(s Square) float64 {
 	return ((math.Abs(float64(s.Rank)-6.5) + math.Abs(float64(s.File)-6.5)) - 1) / 9
 }
 
-// GetBalanceBonus returns a value between 0 and 1.
-// Squares equidistant from the center and the edges produce 1.
-// The coefficients are for scaling the result to (0, 1) range.
+// GetBalanceBonus peaks for squares in the ring equidistant from the center and the edges,
+// and is lower both at the dead center and on the edges.
 func GetBalanceBonus(s Square) float64 {
 	return 1.5 - (GetCenterBonus(s)*GetCenterBonus(s) + GetEdgeBonus(s)*GetEdgeBonus(s))
 }
 
-// GetDefenseBonus returns a value between 0 and 1.
-// Squares equidistant from the center and the edges produce 1.
-// The coefficients are for scaling the result to (0, 1) range.
+// GetDefenseBonus returns a value between 0 and 1, growing toward the team's own back ranks
+// (rank for Red/Yellow, file for Blue/Green) — the defensive end of the board.
 func GetDefenseBonus(s Square, team Team) float64 {
 	switch team {
 	case 1:
@@ -55,9 +53,8 @@ func GetDefenseBonus(s Square, team Team) float64 {
 	return 0
 }
 
-// GetAttackBonus returns a value between 0 and 1.
-// Squares equidistant from the center and the edges produce 1.
-// The coefficients are for scaling the result to (0, 1) range.
+// GetAttackBonus returns a value between 0 and 1, growing toward the opponents' side of the
+// board (the complement of GetDefenseBonus).
 func GetAttackBonus(s Square, team Team) float64 {
 	return 1 - GetDefenseBonus(s, team)
 }

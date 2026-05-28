@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
 
@@ -14,8 +15,9 @@ type DebugConfig struct {
 	// Move ordering stats are printed along this path
 	Continuation string
 
-	pendingPrefixes []continuationEntry
-	mu              sync.Mutex
+	continuation     []continuationEntry
+	contMovesPrinted int
+	mu               sync.Mutex
 
 	lastResults  []candidateResult // Captured snapshot of the latest root search.
 	lastBfsDepth int
@@ -64,7 +66,20 @@ func (ai *AI) InitDebug(g *game.Game) {
 	}
 	entries = append(entries, continuationEntry{hash: g.Hash, depth: 1, nextMove: rootNext})
 
+	fmt.Println()
+
 	for i, move := range moves {
+		err := gameCopy.ValidateMove(&move)
+		if err != nil {
+			log.Errorf("Invalid move: %v", err)
+			break
+		}
+
+		fmt.Printf("%s|", game.HumanReadableMove(gameCopy.Board, move, true))
+		if gameCopy.Board.GetPiece(move.From).Player() == 3 || i == len(moves)-1 {
+			fmt.Println()
+		}
+
 		gameCopy.Play(move)
 
 		next := game.NullMove
@@ -75,25 +90,7 @@ func (ai *AI) InitDebug(g *game.Game) {
 		entries = append(entries, continuationEntry{hash: gameCopy.Hash, depth: i + 2, nextMove: next})
 	}
 
-	cfg.pendingPrefixes = entries
-}
-
-// popContinuationEntry atomically pops the next pending prefix if its hash matches.
-func (c *DebugConfig) popContinuationEntry(hash uint64) (continuationEntry, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if len(c.pendingPrefixes) == 0 {
-		return continuationEntry{}, false
-	}
-
-	next := c.pendingPrefixes[0]
-	if next.hash != hash {
-		return continuationEntry{}, false
-	}
-
-	c.pendingPrefixes = c.pendingPrefixes[1:]
-	return next, true
+	cfg.continuation = entries
 }
 
 func (ai *AI) TotalPossibleEvals() int {
@@ -104,8 +101,28 @@ func (ai *AI) TotalPossibleEvals() int {
 	return total
 }
 
+// popContinuationEntry atomically pops the next pending prefix if its hash matches.
+func (c *DebugConfig) popContinuationEntry(hash uint64) (continuationEntry, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.contMovesPrinted == len(c.continuation) {
+		return continuationEntry{}, false
+	}
+
+	next := c.continuation[c.contMovesPrinted]
+	if next.hash != hash {
+		return continuationEntry{}, false
+	}
+
+	c.contMovesPrinted++
+	return next, true
+}
+
 func (ai *AI) PrintMoveOrderingStats(g *game.Game, moveEvals []moveScore, eval float64, movesLeft int, firstMove game.Move) {
-	entry, ok := ai.debugConfig.popContinuationEntry(g.Hash)
+	c := ai.debugConfig
+
+	entry, ok := c.popContinuationEntry(g.Hash)
 	if !ok {
 		return
 	}
@@ -120,17 +137,31 @@ func (ai *AI) PrintMoveOrderingStats(g *game.Game, moveEvals []moveScore, eval f
 		if i == movesLeft {
 			fmt.Println("-----------------------------------------")
 		}
+
 		marker := "  "
 		if entry.nextMove != game.NullMove && moveEval.move == entry.nextMove {
 			marker = "->"
 		}
+
+		if marker != "->" && i >= movesLeft {
+			continue
+		}
+
 		fmt.Printf("%2d:%s %s m:%7.2f\tp:%7.2f\n", i, marker, game.HumanReadableMove(g.Board, moveEval.move, true), moveEval.score, moveEval.posEval)
+	}
+
+	if c.contMovesPrinted%4 == 0 {
+		gameCopy := g.Copy()
+		gameCopy.Play(entry.nextMove)
+		gameCopy.Board.Draw()
+		fmt.Println()
 	}
 }
 
 func (ai *AI) PrintSearchResults(g *game.Game) {
 	results := ai.debugConfig.lastResults
 	bfsDepth := ai.debugConfig.lastBfsDepth
+	c := ai.debugConfig
 
 	if len(results) == 0 {
 		return
@@ -140,10 +171,15 @@ func (ai *AI) PrintSearchResults(g *game.Game) {
 		return results[i].score > results[j].score
 	})
 
-	fmt.Printf("\nDepth:%v, searchRootMovesParallel results:\n", bfsDepth)
+	fmt.Printf("\nsearchRootMovesParallel results (Depth:%v, eval: %.2f):\n", bfsDepth, c.lastResults[0].score)
 	for i, result := range results {
 		move := result.continuation[0]
-		fmt.Printf("%2d: %s%5.2f\n", i, game.HumanReadableMove(g.Board, move, true), result.score)
+		marker := "  "
+		if move == c.continuation[0].nextMove {
+			marker = "->"
+		}
+
+		fmt.Printf("%2d:%s %s%7.2f\n", i, marker, game.HumanReadableMove(g.Board, move, true), result.score)
 	}
 }
 
@@ -163,7 +199,7 @@ func (c *DebugConfig) captureSearchResults(results []candidateResult, bfsDepth i
 // recordBestMove locates bestMove in the sorted move list and accumulates
 // per-depth move-ordering analytics. No-op when debug is disabled.
 func (ai *AI) recordBestMove(buffer *buffer, depth int, bestMove game.Move, bestScore float64, cpu int) {
-	if ai.debugConfig == nil {
+	if ai.debugConfig == nil || bestMove == game.NullMove {
 		return
 	}
 

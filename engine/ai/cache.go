@@ -17,23 +17,23 @@ const (
 	BoundLower uint8 = 1 // fail-high: score is a lower bound
 	BoundUpper uint8 = 2 // fail-low: score is an upper bound
 
-	StoringDepthThreshold = 24 // Don't store positions with moveNumber > this value.
+	StoringDepthThreshold = 12 // Don't store positions with moveNumber > this value.
 )
 
-// entry is one slot in the transposition table.
+// Entry is one slot in the transposition table.
 // fromIndex and toIndex pack a Square into a byte (high nibble Rank, low nibble File).
-type entry struct {
-	key   uint32
-	score int16
-	depth int8 // remaining depth searched below this node when stored
-	from  uint8
-	to    uint8
-	bound uint8
+type Entry struct {
+	Key   uint32
+	Score int16
+	Depth int8 // remaining depth searched below this node when stored
+	From  uint8
+	To    uint8
+	Bound uint8
 }
 
 // TranspositionTable is a transposition table shared across workers, sharded by mutex to keep contention low.
 type TranspositionTable struct {
-	entries []entry
+	entries []Entry
 	locks   [TTLockShardCount]sync.Mutex
 }
 
@@ -52,7 +52,7 @@ func NewCache() *Cache {
 }
 
 // Get returns the entry for key; ok is false if the slot holds a different key.
-func (c *Cache) Get(key uint64) (cachedEntry entry, ok bool) {
+func (c *Cache) Get(key uint64) (cachedEntry Entry, ok bool) {
 	e, ok := c.Stored.Get(key)
 	if ok {
 		return e, true
@@ -72,7 +72,7 @@ func (c *Cache) Set(key uint64, move game.Move, score float64, depth int8, bound
 // NewTranspositionTable allocates a fresh transposition table.
 func NewTranspositionTable() *TranspositionTable {
 	return &TranspositionTable{
-		entries: make([]entry, TTSize),
+		entries: make([]Entry, TTSize),
 	}
 }
 
@@ -91,7 +91,7 @@ func (t *TranspositionTable) Clear() {
 }
 
 // Get returns the entry for key; ok is false if the slot holds a different key.
-func (t *TranspositionTable) Get(key uint64) (cachedEntry entry, ok bool) {
+func (t *TranspositionTable) Get(key uint64) (cachedEntry Entry, ok bool) {
 	index := key & TTIndexMask
 	lock := &t.locks[index&TTLockShardMask]
 
@@ -101,8 +101,8 @@ func (t *TranspositionTable) Get(key uint64) (cachedEntry entry, ok bool) {
 
 	key32 := uint32(key >> 32)
 
-	if e.key != key32 {
-		return entry{}, false
+	if e.Key != key32 {
+		return Entry{}, false
 	}
 	return e, true
 }
@@ -117,14 +117,14 @@ func (t *TranspositionTable) Set(key uint64, move game.Move, score float64, dept
 
 	lock.Lock()
 	existing := &t.entries[index]
-	if existing.key != key32 || existing.depth <= depth {
-		*existing = entry{
-			key:   key32,
-			score: score16,
-			depth: depth,
-			from:  packSquare(move.From),
-			to:    packSquare(move.To),
-			bound: bound,
+	if existing.Key != key32 || existing.Depth <= depth {
+		*existing = Entry{
+			Key:   key32,
+			Score: score16,
+			Depth: depth,
+			From:  packSquare(move.From),
+			To:    packSquare(move.To),
+			Bound: bound,
 		}
 	}
 	lock.Unlock()
@@ -165,12 +165,12 @@ func unpackSquare(b uint8) game.Square {
 	return game.Square{File: int(b & 0x0F), Rank: int(b >> 4)}
 }
 
-// move returns the entry's move as a game.Move.
-func (e entry) move() game.Move {
-	return game.Move{From: unpackSquare(e.from), To: unpackSquare(e.to)}
+// Move returns the entry's Move as a game.Move.
+func (e Entry) Move() game.Move {
+	return game.Move{From: unpackSquare(e.From), To: unpackSquare(e.To)}
 }
 
-// eval returns the entry's score as a float64.
-func (e entry) eval() float64 {
-	return float64(e.score) / 100
+// Eval returns the entry's score as a float64.
+func (e Entry) Eval() float64 {
+	return float64(e.Score) / 100
 }
