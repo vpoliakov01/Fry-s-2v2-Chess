@@ -95,6 +95,7 @@ export interface GameState {
 	activePlayer: Color;
 	allMoves: MoveInfo[];
 	currentMove: number;
+	selectedMove: number;
 	availableMoves: Move[];
 	score: number;
 	pgn: string;
@@ -107,7 +108,8 @@ export type GameAction =
 	| { type: 'setScore', score: number }
 	| { type: 'setPgn', pgn: string }
 	| { type: 'setCurrentMove', currentMove: number }
-	| { type: 'setViewMove', currentMove: number }
+	| { type: 'setSelectedMove', selectedMove: number }
+	| { type: 'setViewMove', currentMove: number | null, expectedMoveCount?: number }
 	| { type: 'replayMoves', pastMoves: Move[], currentMove: number }
 	| { type: 'reset' };
 
@@ -117,6 +119,7 @@ export function defaultGameState(): GameState {
 		activePlayer: Color.Red,
 		allMoves: [],
 		currentMove: 0,
+		selectedMove: 0,
 		availableMoves: [],
 		score: 0,
 		pgn: '',
@@ -130,6 +133,7 @@ export function loadInitialState(): GameState {
 		activePlayer: saved.activePlayer,
 		allMoves: saved.allMoves,
 		currentMove: saved.currentMove,
+		selectedMove: saved.currentMove,
 		availableMoves: [],
 		score: typeof saved.score === 'number' ? saved.score : 0,
 		pgn: saved.pgn,
@@ -195,15 +199,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 					state.board[to.row][to.col] ?? null,
 					score,
 				);
+
 				const newBoard = state.board.map(row => [...row]);
 				newBoard[to.row][to.col] = newBoard[from.row][from.col];
 				newBoard[from.row][from.col] = null;
 				newMoveInfo.continuation = convertContinuationToMoveInfo(continuation, state.board);
+
+				const moves = [...state.allMoves.slice(0, state.currentMove + 1), newMoveInfo];
+
 				return {
 					...state,
 					board: newBoard,
-					allMoves: [...state.allMoves.slice(0, state.currentMove + 1), newMoveInfo],
-					currentMove: state.currentMove + 1,
+					allMoves: moves,
+					currentMove: moves.length - 1,
+					selectedMove: moves.length - 1,
 					activePlayer: PlayerColors[(PlayerColors.indexOf(state.activePlayer) + 1) % PlayerColors.length],
 					score,
 				};
@@ -218,6 +227,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 				score,
 			);
 			newMoveInfo.continuation = convertContinuationToMoveInfo(continuation, endBoard);
+
 			return { ...state, allMoves: [...state.allMoves, newMoveInfo], score };
 		}
 
@@ -233,13 +243,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 		case 'setCurrentMove':
 			return { ...state, currentMove: action.currentMove };
 
+		case 'setSelectedMove':
+			return { ...state, selectedMove: action.selectedMove };
+
 		case 'setViewMove': {
-			const idx = action.currentMove;
-			const activePlayerIdx = ((idx + 1) % PlayerColors.length + PlayerColors.length) % PlayerColors.length;
+			let index = action.currentMove;
+			if (index === null || (action.expectedMoveCount && action.expectedMoveCount !== state.allMoves.length)) {
+				index = state.allMoves.length - 1;
+			}
+
+			const activePlayerIdx = ((index + 1) % PlayerColors.length + PlayerColors.length) % PlayerColors.length;
 			return {
 				...state,
-				board: replayBoard(state.allMoves, idx),
-				currentMove: idx,
+				board: replayBoard(state.allMoves, index),
+				currentMove: index,
 				activePlayer: PlayerColors[activePlayerIdx],
 			};
 		}
@@ -278,6 +295,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 				board: boardAtIndex,
 				allMoves: newMoves,
 				currentMove: lastMoveIndex,
+				selectedMove: lastMoveIndex,
 				activePlayer: PlayerColors[(lastMoveIndex + 1) % PlayerColors.length],
 			};
 		}

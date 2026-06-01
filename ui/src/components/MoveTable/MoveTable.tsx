@@ -12,6 +12,8 @@ export function MoveTable({ mode }: MoveTableProps) {
 	const {
 		allMoves,
 		currentMove,
+		selectedMove,
+		setSelectedMove,
 		settings,
 		setSettings,
 		displaySettings,
@@ -35,8 +37,8 @@ export function MoveTable({ mode }: MoveTableProps) {
 	]);
 	const startOffset = movesMode ? 0 : (continuation ? currentMove : allMoves.length - 1);
 
-	const [selectedMove, setSelectedMove] = useState<number>(movesMode ? currentMove : -1);
 	const [disableHover, setDisableHover] = useState<boolean>(false);
+	const [expectedMoveCount, setExpectedMoveCount] = useState<number>(moves.length);
 
 	const selectMove = useCallback((index: number) => {
 		// Stop the engine, set all players to human.
@@ -49,7 +51,7 @@ export function MoveTable({ mode }: MoveTableProps) {
 		setSelectedMove(index);
 		setViewMove(index);
 		sendMessage(new Message(MessageType.SetCurrentMove, index));
-	}, [settings, setSettings, setViewMove, sendMessage]);
+	}, [settings, setSettings, setSelectedMove, setViewMove, sendMessage]);
 
 	const playContinuation = useCallback((index: number) => {
 		if (index < 1) {
@@ -68,6 +70,7 @@ export function MoveTable({ mode }: MoveTableProps) {
 		if (movesMode) {
 			setDisableHover(true);
 			selectMove(index);
+			setExpectedMoveCount(moves.length);
 		} else {
 			playContinuation(index);
 		}
@@ -99,8 +102,8 @@ export function MoveTable({ mode }: MoveTableProps) {
 	const handleTableMouseLeave = () => {
 		if (movesMode) {
 			setDisableHover(false);
-			selectMove(selectedMove ?? moves.length - 1);
 			setHighlightedMove(null);
+			setViewMove(selectedMove, expectedMoveCount);
 		}
 	};
 
@@ -229,9 +232,8 @@ export function MoveTable({ mode }: MoveTableProps) {
 			const isHovered = highlightedMove?.move === moves[moveIndex];
 			return (
 				<td
-					className={[styles.moveCell, moveIndex === selectedMove || isHovered ? styles.currentMove : ''].filter(
-						Boolean,
-					).join(' ')}
+					className={[styles.moveCell, moveIndex === currentMove || isHovered ? styles.currentMove : ''].filter(Boolean)
+						.join(' ')}
 					key={`${i}-${moves[moveIndex].toPGN()}`}
 					onClick={() => handleClick(moveIndex)}
 					onMouseEnter={() => handleMouseEnter(moveIndex)}

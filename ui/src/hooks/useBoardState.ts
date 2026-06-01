@@ -15,7 +15,7 @@ import { useGameSocket } from './useGameSocket';
 
 export function useBoardState() {
 	const [state, dispatch] = useReducer(gameReducer, undefined, loadInitialState);
-	const { board, activePlayer, allMoves, currentMove, availableMoves, score, pgn } = state;
+	const { board, activePlayer, allMoves, currentMove, selectedMove, availableMoves, score, pgn } = state;
 	const moves = allMoves.slice(0, currentMove + 1);
 
 	const [selectedSquare, setSelectedSquare] = useState<Position | null>(null);
@@ -65,8 +65,12 @@ export function useBoardState() {
 		dispatch({ type: 'setCurrentMove', currentMove: value });
 	}, []);
 
-	const setViewMove = useCallback((value: number) => {
-		dispatch({ type: 'setViewMove', currentMove: value });
+	const setSelectedMove = useCallback((value: number) => {
+		dispatch({ type: 'setSelectedMove', selectedMove: value });
+	}, []);
+
+	const setViewMove = useCallback((value: number | null, expectedMoveCount?: number) => {
+		dispatch({ type: 'setViewMove', currentMove: value, expectedMoveCount });
 	}, []);
 
 	const setPgn = useCallback((value: string) => {
@@ -106,11 +110,13 @@ export function useBoardState() {
 		availableMoves,
 		board,
 		currentMove,
+		selectedMove,
 		moves,
 		pgn,
 		score,
 		selectedSquare,
 		setCurrentMove,
+		setSelectedMove,
 		setViewMove,
 		movePiece,
 		playContinuationFromCurrent,
