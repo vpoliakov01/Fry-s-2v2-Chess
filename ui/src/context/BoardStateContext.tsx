@@ -56,6 +56,7 @@ export const BoardStateProvider = ({ children }: { children: ReactNode }) => {
 				...displaySettings,
 				...gameSettings,
 				highlightedMove: highlightedMove,
+				currentMove: state.currentMove,
 				setHighlightedMove,
 			}}
 		>

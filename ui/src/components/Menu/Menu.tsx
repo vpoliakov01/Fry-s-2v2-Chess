@@ -9,16 +9,13 @@ import { Settings } from '../Settings';
 import styles from './Menu.module.css';
 
 export function Menu() {
-	const {
-		allMoves,
-		sendMessage,
-		displaySettings,
-		connected,
-	} = useBoardStateContext();
+	const { allMoves, sendMessage, displaySettings, connected, currentMove } = useBoardStateContext();
 	const [pgnBlockCollapsed, setPGNBlockCollapsed] = useState(false);
 	const [userPGN, setUserPGN] = useState<string | null>(null);
 
-	const pgn = userPGN != null ? userPGN : movesToPGN(allMoves);
+	const moves = allMoves.slice(0, currentMove + 1); // Only include moves up to the current move.
+
+	const pgn = userPGN != null ? userPGN : movesToPGN(moves);
 
 	const handleNewGame = (event: React.MouseEvent<HTMLButtonElement>) => {
 		sendMessage(new Message(MessageType.NewGame, null));
@@ -26,7 +23,7 @@ export function Menu() {
 	};
 
 	const handleCopy = (event: React.MouseEvent<HTMLButtonElement>) => {
-		navigator.clipboard.writeText(movesToPGN(allMoves));
+		navigator.clipboard.writeText(movesToPGN(moves));
 		setPGNBlockCollapsed(false);
 		event.stopPropagation();
 	};
@@ -61,7 +58,7 @@ export function Menu() {
 						id='game-save-text'
 						value={pgn}
 						onChange={e => setUserPGN(e.target.value)}
-						onBlur={() => setUserPGN(userPGN || movesToPGN(allMoves))} // Reset on empty userPGN.
+						onBlur={() => setUserPGN(userPGN || movesToPGN(moves))} // Reset on empty userPGN.
 						className={styles.gameTextarea}
 					/>
 				</CollapsibleBlock>
