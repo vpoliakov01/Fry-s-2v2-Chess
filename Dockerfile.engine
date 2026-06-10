@@ -8,7 +8,7 @@ COPY engine ./engine
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd
 
 FROM alpine:latest
-WORKDIR /app
 COPY --from=build /out/server /app/server
+WORKDIR /data
 EXPOSE 8080
 ENTRYPOINT ["/app/server", "-server"]
