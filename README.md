@@ -11,50 +11,40 @@ I can and I do! But 2v2 chess is more dynamic and requires good teamwork and com
 
 ## What stage is the project in?
 
-Since it's been started only a few days ago, it is in the MVP stage. It plays generally sound moves, but more optimization / testing is to be done.
+Most of the time, it plays very sensible moves, but it's not perfect.
 
-![image](https://user-images.githubusercontent.com/53489500/169457551-9ab1c224-d676-4c19-ab04-6b76f1828257.png)
+<img width="1990" height="1440" alt="image" src="https://github.com/user-attachments/assets/fc57fddd-d621-4e1b-9f56-3a7ecfc69a8f" />
 
 An example of a position reached by the engine playing against itself. Pretty similar to the kind of positions reached by human players.
 
 ## How does it work?
 
-To pick a move, it uses negamax with alpha-beta pruning to arrive to the most favorable forced position at a specified depth. How favorable a position is is evaluated based on the team's pieces' positions, progression of the game, and number of available moves. It uses [multithreading by running the position evaluation on all availabe CPUs](https://github.com/vpoliakov01/2v2ChessAI/blob/dev/ai/ai.go#L78-L93) (GPU acceleration is planned for the future).
+To pick a move, it uses negamax with alpha-beta pruning to arrive to the most favorable position at a specified depth. To find the best move, it checks all possible moves available to the active player (without pruning) concurrently, updating the shared alpha value. For following moves, it heavily prunes the number of moves by running static evalution on them based on the improvement in the piece's position, value of the captured piece (when applicable), threat to the opposing kings, safety of the ally kings, and pawn structure. Evaluations of checked positions are cached. The cache is persisted on disk for moves 1-12 of the game.
 
 ## What is the ELO estimate for this engine
 
-On depth 5, it is around 1700-1800 ELO
-
-## What are the main components that are worth checking out?
-* [ai/ai.go](https://github.com/vpoliakov01/2v2ChessAI/blob/main/ai/ai.go)
-* [game/game.go](https://github.com/vpoliakov01/2v2ChessAI/blob/main/ai/game.go)
-* [game/board.go](https://github.com/vpoliakov01/2v2ChessAI/blob/main/ai/board.go)
-* [game/piece.go](https://github.com/vpoliakov01/2v2ChessAI/blob/main/ai/piece.go)
-* [game/ in general](https://github.com/vpoliakov01/2v2ChessAI/tree/main/game)
-* [dev branch](https://github.com/vpoliakov01/2v2ChessAI/tree/dev)
-* [~~PRs~~](https://github.com/vpoliakov01/2v2ChessAI/pulls?q=+)
+On depth 12, spread 8, it is around 1800-2000 ELO
 
 Some more positions reached by the engine playing itself:
 
-![image](https://user-images.githubusercontent.com/53489500/169458751-f20fe24b-2372-4ced-937b-75d575195e10.png)
-![image](https://user-images.githubusercontent.com/53489500/169458772-539fa726-ffde-4f65-abb7-9e5271950d29.png)
+<img width="1475" height="1440" alt="image" src="https://github.com/user-attachments/assets/55d980c1-6b66-42cb-aee1-935c0b52b9fb" />
 
-## To play against the AI:
-`go build -o cmd/ai cmd/main.go && ./cmd/ai`
+<img width="1476" height="1438" alt="image" src="https://github.com/user-attachments/assets/3b57af64-7a57-4518-94b6-93d204c6469a" />
+
+<img width="1475" height="1438" alt="image" src="https://github.com/user-attachments/assets/3be7ec37-ab78-49dd-825b-87f1abded664" />
+
+## To launch:
+1. `docker compose up --build`
+2. Open http://localhost
+This starts the engine and the UI. (set `UI_PORT` to use a different port, e.g. `UI_PORT=3000 docker compose up --build`).
+The engine's cache is persisted in the `chess-cache` volume between restarts.
 
 ## TODO:
 ### UI:
-* Move delay (?)
+* Move animation (?)
 * Thinking indicator
 
 ### Engine:
-* Test with very sophisticated position evaluation
-    * Return 2 scores, eval of the position and how promising the move is
-    * Add king safety metrics / different moves exploration based on that
-* Store the cache between games (for first 20 moves?)
 * Run calculation in the background
-* Support castling
-* Support forced calculation for checks
-
-### Other:
-* Update readme
+* Stream currently best discovered lines
+* Forced calculation for checks
