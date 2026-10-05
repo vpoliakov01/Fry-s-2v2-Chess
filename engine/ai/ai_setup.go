@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"runtime"
 	"sync"
-	"syscall"
 
 	"github.com/vpoliakov01/2v2ChessAI/engine/game"
 )
@@ -105,7 +104,7 @@ func (ai *AI) LoadCache() error {
 func (ai *AI) installShutdownHook() {
 	shutdownHookOnce.Do(func() {
 		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGABRT)
+		signal.Notify(c, shutdownSignals()...)
 
 		go func() {
 			sig := <-c
@@ -114,8 +113,7 @@ func (ai *AI) installShutdownHook() {
 				log.Printf("Failed to store transposition table: %v", err)
 			}
 
-			signal.Reset(sig.(syscall.Signal))
-			syscall.Kill(syscall.Getpid(), sig.(syscall.Signal))
+			terminateAfterShutdown(sig)
 		}()
 	})
 }
